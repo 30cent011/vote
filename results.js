@@ -1,32 +1,48 @@
 const USERNAME_KEY = 'voteUsername';
 const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
+let votesData = {};
+let sseSource = null;
+
+// ── SSE: live sync ────────────────────────────────────────────────────────────
+function initSSE() {
+    if (sseSource) sseSource.close();
+    sseSource = new EventSource('/api/stream');
+
+    sseSource.addEventListener('init', (e) => {
+        const data = JSON.parse(e.data);
+        votesData = data.votes;
+        renderResults();
+    });
+
+    sseSource.addEventListener('votes-updated', (e) => {
+        const data = JSON.parse(e.data);
+        votesData = data.votes;
+        renderResults();
+    });
+
+    sseSource.onerror = () => {
+        sseSource.close();
+        setTimeout(initSSE, 3000);
+    };
+}
 
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
-}
-
-function loadVotes() {
-    const votes = {};
-    participants.forEach(name => {
-        votes[name] = parseInt(localStorage.getItem(name) || 0, 10);
-    });
-    return votes;
 }
 
 function getTotalVotes(votes) {
     return Object.values(votes).reduce((sum, count) => sum + count, 0);
 }
 
-function displayResults() {
-    const votes = loadVotes();
-    const total = getTotalVotes(votes);
-    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
-    const resultsList = document.getElementById('results-list');
-    resultsList.innerHTML = '';
+async function renderResults() {
+    const total  = getTotalVotes(votesData);
+    const sorted = Object.entries(votesData).sort((a, b) => b[1] - a[1]);
+    const list   = document.getElementById('results-list');
+    list.innerHTML = '';
 
     sorted.forEach(([name, count], index) => {
         const share = total === 0 ? 0 : Math.round((count / total) * 100);
-        const card = document.createElement('article');
+        const card  = document.createElement('article');
         card.className = 'participant-card';
         card.innerHTML = `
             <div class="card-top">
@@ -36,30 +52,41 @@ function displayResults() {
                 </div>
                 <div class="vote-count">${share}%</div>
             </div>
-            <div class="share-bar"><div class="share-fill" style="width: ${share}%;"></div></div>
+            <div class="share-bar"><div class="share-fill" style="width:${share}%;"></div></div>
         `;
-        resultsList.appendChild(card);
+        list.appendChild(card);
     });
 
     const [leaderName, leaderCount] = sorted[0] || ['None', 0];
     const leaderShare = total === 0 ? 0 : Math.round((leaderCount / total) * 100);
 
-    document.getElementById('results-total').textContent = total;
+    document.getElementById('results-total').textContent  = total;
     document.getElementById('results-leader').textContent = leaderName;
-    document.getElementById('results-share').textContent = `${leaderShare}%`;
+    document.getElementById('results-share').textContent  = `${leaderShare}%`;
+
     const username = loadUsername();
-    document.getElementById('results-user-message').textContent = username ? `Logged in as ${username}` : 'Not registered';
+    document.getElementById('results-user-message').textContent =
+        username ? `Logged in as ${username}` : 'Not registered';
+
+    // Stats
+    try {
+        const res = await fetch('/api/stats');
+        if (res.ok) {
+            const stats = await res.json();
+            document.getElementById('logged-in-count').textContent   = stats.loggedInCount;
+            document.getElementById('voted-percentage').textContent  = `${stats.loginPercentage}%`;
+        }
+    } catch (e) {
+        console.error('Error loading stats:', e);
+    }
 }
 
 function resetVotes() {
-    if (confirm('Reset the market and clear all vote data?')) {
-        participants.forEach(name => localStorage.removeItem(name));
-        displayResults();
-        alert('Votes have been reset.');
-    }
+    alert('Use the Admin Dashboard to reset votes.');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('reset-votes').addEventListener('click', resetVotes);
-    displayResults();
+    // SSE handles all live updates — no polling needed
+    initSSE();
 });
