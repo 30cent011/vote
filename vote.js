@@ -81,10 +81,12 @@ async function submitVoteToServer(candidate, username) {
             votesData = data.votes;
             usersData = data.users;
             broadcastUpdate();
+            return true;
         }
     } catch (error) {
         console.error('Error submitting vote:', error);
     }
+    return false;
 }
 
 async function loginUser(username) {
@@ -243,7 +245,7 @@ function renderParticipants() {
     list.innerHTML = '';
 
     participants.forEach(name => {
-        const count = votesData[name];
+        const count = votesData[name] ?? 0;
         const share = total === 0 ? 0 : Math.round((count / total) * 100);
         const card = document.createElement('article');
         card.className = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
@@ -293,12 +295,17 @@ async function voteForCandidate(candidateName) {
         return;
     }
 
-    await submitVoteToServer(candidateName, username);
+    const success = await submitVoteToServer(candidateName, username);
+    if (!success) {
+        alert('Failed to submit vote. Please try again.');
+        return;
+    }
+
+    // usersData and votesData are now updated from the server response
     selectedCandidate = candidateName;
-    renderParticipants();
-    document.getElementById('vote-status').textContent = `You voted for ${candidateName}!`;
     document.getElementById('selected-name').textContent = candidateName;
-    updateUserUI();
+    renderParticipants();   // re-render with fresh counts
+    updateUserUI();         // disable button now that hasUserVoted() returns true
     if (typeof recordUserActivity === 'function') {
         recordUserActivity(username, 'VOTED', candidateName);
     }
@@ -425,7 +432,7 @@ function updateSummary(votes) {
 
 function updateSelection() {
     document.getElementById('selected-name').textContent = selectedCandidate || 'None';
-    renderParticipants();
+    renderParticipants();   // re-render cards so selected highlight moves
     updateUserUI();
 }
 
