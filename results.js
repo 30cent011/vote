@@ -1,16 +1,19 @@
 const USERNAME_KEY = 'voteUsername';
+const VOTES_KEY = 'voteData';
 const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
 
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
 }
 
-function loadVotes() {
-    const votes = {};
-    participants.forEach(name => {
-        votes[name] = parseInt(localStorage.getItem(name) || 0, 10);
-    });
-    return votes;
+function loadVotesFromStorage() {
+    const stored = localStorage.getItem(VOTES_KEY);
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    const initial = {};
+    participants.forEach(name => initial[name] = 0);
+    return initial;
 }
 
 function getTotalVotes(votes) {
@@ -18,7 +21,7 @@ function getTotalVotes(votes) {
 }
 
 function displayResults() {
-    const votes = loadVotes();
+    const votes = loadVotesFromStorage();
     const total = getTotalVotes(votes);
     const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
     const resultsList = document.getElementById('results-list');
@@ -52,8 +55,9 @@ function displayResults() {
 }
 
 function resetVotes() {
-    if (confirm('Reset the market and clear all vote data?')) {
-        participants.forEach(name => localStorage.removeItem(name));
+    if (confirm('Reset the market and clear all vote data? This will clear all votes!')) {
+        localStorage.removeItem(VOTES_KEY);
+        localStorage.removeItem(USERS_KEY);
         displayResults();
         alert('Votes have been reset.');
     }

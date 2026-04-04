@@ -1,5 +1,7 @@
 const USERNAME_KEY = 'voteUsername';
 const DEADLINE_KEY = 'voteDeadline';
+const VOTES_KEY = 'voteData';
+const USERS_KEY = 'userData';
 const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
 const participantAvatars = {
     Eliman: 'image/eliman.jpg',
@@ -9,6 +11,35 @@ const participantAvatars = {
 };
 let selectedCandidate = null;
 let chartInstance = null;
+let votesData = loadVotesFromStorage();
+let usersData = loadUsersFromStorage();
+let broadcastChannel = null;
+
+// Initialize broadcast channel for same-browser tab sync
+function initBroadcastChannel() {
+    if (typeof BroadcastChannel !== 'undefined') {
+        broadcastChannel = new BroadcastChannel('vote-sync');
+        broadcastChannel.onmessage = (event) => {
+            if (event.data.type === 'votes-updated') {
+                votesData = event.data.votes;
+                usersData = event.data.users;
+                renderParticipants(votesData);
+                updateSummary(votesData);
+            }
+        };
+    }
+}
+
+// Broadcast updates to other tabs
+function broadcastUpdate() {
+    if (broadcastChannel) {
+        broadcastChannel.postMessage({
+            type: 'votes-updated',
+            votes: votesData,
+            users: usersData
+        });
+    }
+}
 
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
@@ -22,34 +53,51 @@ function clearUsername() {
     localStorage.removeItem(USERNAME_KEY);
 }
 
-function loadVotes() {
-    const votes = {};
-    participants.forEach(name => {
-        votes[name] = parseInt(localStorage.getItem(name) || 0, 10);
-    });
-    return votes;
+function loadVotesFromStorage() {
+    const stored = localStorage.getItem(VOTES_KEY);
+    if (stored) {
+        return JSON.parse(stored);
+    }
+    const initial = {};
+    participants.forEach(name => initial[name] = 0);
+    return initial;
+}
+
+function saveVotesToStorage() {
+    localStorage.setItem(VOTES_KEY, JSON.stringify(votesData));
+    broadcastUpdate();
+}
+
+function loadUsersFromStorage() {
+    const stored = localStorage.getItem(USERS_KEY);
+    return stored ? JSON.parse(stored) : {};
+}
+
+function saveUsersToStorage() {
+    localStorage.setItem(USERS_KEY, JSON.stringify(usersData));
+    broadcastUpdate();
 }
 
 function getUserVote(username) {
-    return localStorage.getItem(`voteCast_${username}`) || '';
+    return usersData[username]?.vote || '';
 }
 
 function setUserVote(username, candidate) {
-    localStorage.setItem(`voteCast_${username}`, candidate);
-}
-
-function clearUserVote(username) {
-    localStorage.removeItem(`voteCast_${username}`);
+    if (!usersData[username]) {
+        usersData[username] = {};
+    }
+    usersData[username].vote = candidate;
+    usersData[username].timestamp = new Date().toISOString();
+    saveUsersToStorage();
 }
 
 function hasUserVoted(username) {
     return Boolean(getUserVote(username));
 }
 
-function saveVotes(votes) {
-    for (const [name, count] of Object.entries(votes)) {
-        localStorage.setItem(name, count);
-    }
+function updateVotes(votes) {
+    votesData = { ...votes };
+    saveVotesToStorage();
 }
 
 function getTotalVotes(votes) {
@@ -162,16 +210,15 @@ function handleLogout() {
 }
 
 function renderParticipants() {
-    const votes = loadVotes();
     renderImageGallery();
-    renderProbabilityGraph(votes);
+    renderProbabilityGraph(votesData);
 
-    const total = getTotalVotes(votes);
+    const total = getTotalVotes(votesData);
     const list = document.getElementById('participants');
     list.innerHTML = '';
 
     participants.forEach(name => {
-        const count = votes[name];
+        const count = votesData[name];
         const share = total === 0 ? 0 : Math.round((count / total) * 100);
         const card = document.createElement('article');
         card.className = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
@@ -205,7 +252,7 @@ function renderParticipants() {
         list.appendChild(card);
     });
 
-    updateSummary(votes);
+    updateSummary(votesData);
 }
 
 function voteForCandidate(candidateName) {
@@ -222,9 +269,7 @@ function voteForCandidate(candidateName) {
     }
 
     const weight = Number(document.getElementById('vote-weight').value);
-    const votes = loadVotes();
-    votes[candidateName] += weight;
-    saveVotes(votes);
+    votesData[candidateName] += weight;
     setUserVote(username, candidateName);
     selectedCandidate = candidateName;
     renderParticipants();
@@ -385,6 +430,9 @@ function syncWeightDisplay() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Initialize broadcast channel for tab sync
+    initBroadcastChannel();
+
     document.getElementById('submit-vote').addEventListener('click', submitVote);
     document.getElementById('view-results').addEventListener('click', viewResults);
     document.getElementById('registration-form').addEventListener('submit', handleRegister);

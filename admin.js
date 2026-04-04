@@ -6,6 +6,8 @@ const ADMIN_CREDENTIALS = {
 const ADMIN_SESSION_KEY = 'adminSession';
 const ADMIN_TOKEN = 'adminToken_v1';
 const USER_ACTIVITY_KEY = 'userActivity';
+const VOTES_KEY = 'voteData';
+const USERS_KEY = 'userData';
 const PARTICIPANTS = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
 
 function isAdminLoggedIn() {
@@ -96,26 +98,23 @@ if (document.getElementById('clear-votes-btn')) {
     });
 
     loadDashboardData();
-    setInterval(loadDashboardData, 2000);
+    setInterval(() => {
+        loadDashboardData();
+    }, 2000);
 }
 
 function loadAllUsers() {
-    const activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
-    const seenUsers = new Set();
-    activities.forEach(activity => seenUsers.add(activity.username));
-    return Array.from(seenUsers);
+    const usersData = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+    return Object.keys(usersData);
 }
 
 function getUserVoteInfo(username) {
-    return localStorage.getItem(`voteCast_${username}`) || null;
+    const usersData = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
+    return usersData[username]?.vote || null;
 }
 
 function getAllVotes() {
-    const votes = {};
-    PARTICIPANTS.forEach(name => {
-        votes[name] = parseInt(localStorage.getItem(name) || 0, 10);
-    });
-    return votes;
+    return JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
 }
 
 function getTotalVotes(votes) {
@@ -123,13 +122,20 @@ function getTotalVotes(votes) {
 }
 
 function clearAllVotes() {
-    PARTICIPANTS.forEach(name => localStorage.removeItem(name));
-    const activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
-    const seenUsers = new Set();
-    activities.forEach(activity => seenUsers.add(activity.username));
-    seenUsers.forEach(username => localStorage.removeItem(`voteCast_${username}`));
+    // Reset votes
+    const initialVotes = {};
+    PARTICIPANTS.forEach(name => initialVotes[name] = 0);
+    localStorage.setItem(VOTES_KEY, JSON.stringify(initialVotes));
+
+    // Clear all user votes
+    localStorage.setItem(USERS_KEY, JSON.stringify({}));
+
     trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
     loadDashboardData();
+}
+    } catch (error) {
+        console.error('Error clearing votes:', error);
+    }
 }
 
 function loadDashboardData() {
@@ -191,7 +197,7 @@ function loadDashboardData() {
                     ${vote ? `<div class="user-vote">${vote}</div>` : ''}
                 </div>
             `;
-        });
+        }
         userActivityDiv.innerHTML = userActivityHTML;
     }
 }
