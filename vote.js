@@ -9,6 +9,8 @@ const participantAvatars = {
 };
 let selectedCandidate = null;
 let chartInstance = null;
+let serverVotes = null;
+let isSyncOnline = false;
 
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
@@ -30,6 +32,16 @@ function loadVotes() {
     return votes;
 }
 
+function saveVotes(votes) {
+    for (const [name, count] of Object.entries(votes)) {
+        localStorage.setItem(name, count);
+    }
+}
+
+function getCurrentVotes() {
+    return serverVotes || loadVotes();
+}
+
 function getUserVote(username) {
     return localStorage.getItem(`voteCast_${username}`) || '';
 }
@@ -44,12 +56,6 @@ function clearUserVote(username) {
 
 function hasUserVoted(username) {
     return Boolean(getUserVote(username));
-}
-
-function saveVotes(votes) {
-    for (const [name, count] of Object.entries(votes)) {
-        localStorage.setItem(name, count);
-    }
 }
 
 function getTotalVotes(votes) {
@@ -104,6 +110,18 @@ function updateCountdown() {
     }
 }
 
+function updateSyncStatus() {
+    const status = document.getElementById('sync-status');
+    if (!status) return;
+    if (isSyncOnline) {
+        status.textContent = 'Live vote sync is active.';
+        status.classList.remove('offline');
+    } else {
+        status.textContent = 'Offline mode: votes are shown locally until server reconnects.';
+        status.classList.add('offline');
+    }
+}
+
 function updateUserUI() {
     const username = loadUsername();
     const userStatus = document.getElementById('user-status');
@@ -137,32 +155,65 @@ function updateUserUI() {
     }
 }
 
-function handleRegister(event) {
-    event.preventDefault();
-    const input = document.getElementById('username-input');
-    const name = input.value.trim();
-    if (!name) {
-        alert('Choose a username to continue.');
-        return;
+async function postLoginToServer(username) {
+    try {
+        const response = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+        return response.ok;
+    } catch (error) {
+        return false;
     }
-    saveUsername(name);
-    input.value = '';
-    updateUserUI();
-    if (typeof recordUserActivity === 'function') {
-        recordUserActivity(name, 'REGISTERED');
-    }
-    alert(`Registered as ${name}.`);
 }
 
-function handleLogout() {
-    clearUsername();
-    selectedCandidate = null;
-    updateSelection();
-    updateUserUI();
+async function fetchServerVotes() {
+    try {
+        const response = await fetch('/api/votes');
+        if (!response.ok) throw new Error('Unable to fetch votes');
+        const votes = await response.json();
+        return votes;
+    } catch (error) {
+        console.warn('Vote sync failed:', error);
+        return null;
+    }
+}
+
+async function postVoteToServer(candidate, username, weight) {
+    try {
+        const response = await fetch('/api/votes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ candidate, username, weight })
+        });
+        if (!response.ok) {
+            const payload = await response.json().catch(() => ({}));
+            throw new Error(payload.error || 'Server rejected vote');
+        }
+        return response.json();
+    } catch (error) {
+        console.warn('Vote submission failed:', error);
+        return null;
+    }
+}
+
+async function syncVotes() {
+    const votes = await fetchServerVotes();
+    if (votes) {
+        serverVotes = votes;
+        saveVotes(votes);
+        isSyncOnline = true;
+    } else {
+        serverVotes = null;
+        isSyncOnline = false;
+    }
+    updateSyncStatus();
+    renderParticipants();
 }
 
 function renderParticipants() {
-    const votes = loadVotes();
+    const votes = getCurrentVotes();
     renderImageGallery();
     renderProbabilityGraph(votes);
 
@@ -208,7 +259,7 @@ function renderParticipants() {
     updateSummary(votes);
 }
 
-function voteForCandidate(candidateName) {
+async function voteForCandidate(candidateName) {
     const username = loadUsername();
     if (!username) {
         alert('Register with a username before voting.');
@@ -222,11 +273,24 @@ function voteForCandidate(candidateName) {
     }
 
     const weight = Number(document.getElementById('vote-weight').value);
-    const votes = loadVotes();
-    votes[candidateName] += weight;
-    saveVotes(votes);
+    const localVotes = loadVotes();
+    localVotes[candidateName] += weight;
+    saveVotes(localVotes);
     setUserVote(username, candidateName);
     selectedCandidate = candidateName;
+
+    if (isSyncOnline) {
+        const result = await postVoteToServer(candidateName, username, weight);
+        if (result && result.success) {
+            serverVotes = result.votes;
+            saveVotes(result.votes);
+        } else {
+            isSyncOnline = false;
+            updateSyncStatus();
+            alert('Vote was recorded locally, but sync is offline. Refresh later to update live totals.');
+        }
+    }
+
     renderParticipants();
     document.getElementById('vote-status').textContent = `You voted for ${candidateName}!`;
     document.getElementById('selected-name').textContent = candidateName;
@@ -361,7 +425,7 @@ function updateSelection() {
     updateUserUI();
 }
 
-function submitVote() {
+async function submitVote() {
     const username = loadUsername();
     if (!username) {
         alert('Register with a username before voting.');
@@ -384,7 +448,35 @@ function syncWeightDisplay() {
     document.getElementById('weight-display').textContent = document.getElementById('vote-weight').value;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function handleRegister(event) {
+    event.preventDefault();
+    const input = document.getElementById('username-input');
+    const name = input.value.trim();
+    if (!name) {
+        alert('Choose a username to continue.');
+        return;
+    }
+    const loggedIn = await postLoginToServer(name);
+    saveUsername(name);
+    input.value = '';
+    updateUserUI();
+    if (loggedIn) {
+        syncVotes();
+    }
+    if (typeof recordUserActivity === 'function') {
+        recordUserActivity(name, 'REGISTERED');
+    }
+    alert(`Registered as ${name}.`);
+}
+
+function handleLogout() {
+    clearUsername();
+    selectedCandidate = null;
+    updateSelection();
+    updateUserUI();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('submit-vote').addEventListener('click', submitVote);
     document.getElementById('view-results').addEventListener('click', viewResults);
     document.getElementById('registration-form').addEventListener('submit', handleRegister);
@@ -395,5 +487,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUserUI();
     renderParticipants();
     updateCountdown();
+    await syncVotes();
     setInterval(updateCountdown, 1000);
+    setInterval(syncVotes, 5000);
 });

@@ -264,12 +264,27 @@ button, input[type="range"] { font: inherit; }
     letter-spacing: -0.01em;
 }
 
-.panel-heading h2 { font-size: 1.35rem; }
+..panel-heading h2 { font-size: 1.35rem; }
 .panel-heading h3 { font-size: 1.1rem; }
 .panel-heading p  { color: var(--text-muted); font-size: 0.88rem; line-height: 1.5; }
+.panel-label {
+    margin-bottom: 1rem;
+}
+.panel-label .tag {
+    display: inline-block;
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 0.35rem 0.9rem;
+    font-family: var(--font-head);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
 
 /* === IMAGE GALLERY === */
-.image-gallery {
+.image-gallery,
+.candidate-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
     gap: 1rem;

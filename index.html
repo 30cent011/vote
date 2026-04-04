@@ -56,6 +56,28 @@
                 <h2>Who Gets Kicked First?</h2>
                 <p>See current vote shares and choose who to push to the top of the kick list.</p>
             </div>
+            <div class="panel-heading">
+                <h3>Candidates</h3>
+                <p>These are the people you can vote for right now.</p>
+            </div>
+            <div class="candidate-grid">
+                <div class="avatar-card">
+                    <img src="image/eliman.jpg" alt="Eliman">
+                    <div class="avatar-name">Eliman</div>
+                </div>
+                <div class="avatar-card">
+                    <img src="image/isreal.jpg" alt="Isreal">
+                    <div class="avatar-name">Isreal</div>
+                </div>
+                <div class="avatar-card">
+                    <img src="image/marwan.webp" alt="Marwan">
+                    <div class="avatar-name">Marwan</div>
+                </div>
+                <div class="avatar-card">
+                    <img src="image/suraj.jpg" alt="Suraj">
+                    <div class="avatar-name">Suraj</div>
+                </div>
+            </div>
             <div class="image-gallery" id="image-gallery"></div>
             <div class="probability-panel">
                 <div class="panel-heading">
@@ -69,7 +91,10 @@
             <div id="participants" class="participant-list"></div>
         </section>
 
-        <aside class="activity-panel">
+        <aside id="vote-area" class="activity-panel" style="display: block;">
+            <div class="panel-label">
+                <span class="tag">Voting Area</span>
+            </div>
             <div class="panel-heading">
                 <h2>Pick Who Gets Kicked First</h2>
                 <p>Choose a candidate, set your vote weight, and cast your vote.</p>
@@ -85,6 +110,7 @@
             </div>
             <div class="trade-card">
                 <div id="vote-status" class="vote-note">Register to start voting.</div>
+                <div id="sync-status" class="vote-note">Sync status not available yet.</div>
             </div>
             <div class="trade-card action-group">
                 <button id="submit-vote" class="primary">Submit Vote</button>
