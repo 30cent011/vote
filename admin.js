@@ -27,11 +27,7 @@ function logoutAdmin() {
 
 // Console command to open admin panel (password protected & hidden)
 window.openAdmin = function(password) {
-    // Password is encoded to hide from casual source code viewers
-    const ADMIN_PASSWORD_ENCODED = 'SEVJU0VOQkVSRzY3bCs=';
-    const decodedPassword = atob(ADMIN_PASSWORD_ENCODED);
-    
-    if (password === decodedPassword) {
+    if (password === ADMIN_CREDENTIALS.password) {
         localStorage.setItem(ADMIN_SESSION_KEY, ADMIN_TOKEN);
         window.location.href = 'admin-dashboard.html';
         console.log('✅ Admin access enabled! Redirecting...');
