@@ -1,29 +1,35 @@
 const USERNAME_KEY = 'voteUsername';
-const VOTES_KEY = 'voteData';
 const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
+let votesData = {};
+
+async function loadVotesFromServer() {
+    try {
+        const response = await fetch('/api/votes');
+        if (response.ok) {
+            votesData = await response.json();
+        } else {
+            votesData = {};
+            participants.forEach(name => votesData[name] = 0);
+        }
+    } catch (error) {
+        console.error('Error loading votes:', error);
+        votesData = {};
+        participants.forEach(name => votesData[name] = 0);
+    }
+}
 
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
-}
-
-function loadVotesFromStorage() {
-    const stored = localStorage.getItem(VOTES_KEY);
-    if (stored) {
-        return JSON.parse(stored);
-    }
-    const initial = {};
-    participants.forEach(name => initial[name] = 0);
-    return initial;
 }
 
 function getTotalVotes(votes) {
     return Object.values(votes).reduce((sum, count) => sum + count, 0);
 }
 
-function displayResults() {
-    const votes = loadVotesFromStorage();
-    const total = getTotalVotes(votes);
-    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+async function displayResults() {
+    await loadVotesFromServer();
+    const total = getTotalVotes(votesData);
+    const sorted = Object.entries(votesData).sort((a, b) => b[1] - a[1]);
     const resultsList = document.getElementById('results-list');
     resultsList.innerHTML = '';
 
@@ -52,18 +58,29 @@ function displayResults() {
     document.getElementById('results-share').textContent = `${leaderShare}%`;
     const username = loadUsername();
     document.getElementById('results-user-message').textContent = username ? `Logged in as ${username}` : 'Not registered';
+
+    // Fetch and display stats
+    try {
+        const statsResponse = await fetch('/api/stats');
+        if (statsResponse.ok) {
+            const stats = await statsResponse.json();
+            document.getElementById('logged-in-count').textContent = stats.loggedInCount;
+            document.getElementById('voted-percentage').textContent = `${stats.loginPercentage}%`;
+        }
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
 }
 
 function resetVotes() {
     if (confirm('Reset the market and clear all vote data? This will clear all votes!')) {
-        localStorage.removeItem(VOTES_KEY);
-        localStorage.removeItem(USERS_KEY);
-        displayResults();
-        alert('Votes have been reset.');
+        // Note: Reset would need admin API, but for now, just reload
+        alert('Reset not implemented in server mode.');
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('reset-votes').addEventListener('click', resetVotes);
-    displayResults();
+    await displayResults();
+    setInterval(displayResults, 5000); // Poll every 5 seconds
 });

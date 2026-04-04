@@ -1,7 +1,5 @@
 const USERNAME_KEY = 'voteUsername';
 const DEADLINE_KEY = 'voteDeadline';
-const VOTES_KEY = 'voteData';
-const USERS_KEY = 'userData';
 const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
 const participantAvatars = {
     Eliman: 'image/eliman.jpg',
@@ -11,8 +9,8 @@ const participantAvatars = {
 };
 let selectedCandidate = null;
 let chartInstance = null;
-let votesData = loadVotesFromStorage();
-let usersData = loadUsersFromStorage();
+let votesData = {};
+let usersData = {};
 let broadcastChannel = null;
 
 // Initialize broadcast channel for same-browser tab sync
@@ -41,6 +39,66 @@ function broadcastUpdate() {
     }
 }
 
+async function loadVotesFromServer() {
+    try {
+        const response = await fetch('/api/votes');
+        if (response.ok) {
+            votesData = await response.json();
+        } else {
+            votesData = {};
+            participants.forEach(name => votesData[name] = 0);
+        }
+    } catch (error) {
+        console.error('Error loading votes:', error);
+        votesData = {};
+        participants.forEach(name => votesData[name] = 0);
+    }
+}
+
+async function loadUsersFromServer() {
+    try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+            usersData = await response.json();
+        } else {
+            usersData = {};
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        usersData = {};
+    }
+}
+
+async function submitVoteToServer(candidate, username) {
+    try {
+        const response = await fetch('/api/votes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ candidate, username })
+        });
+        if (response.ok) {
+            const data = await response.json();
+            votesData = data.votes;
+            usersData = data.users;
+            broadcastUpdate();
+        }
+    } catch (error) {
+        console.error('Error submitting vote:', error);
+    }
+}
+
+async function loginUser(username) {
+    try {
+        await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username })
+        });
+    } catch (error) {
+        console.error('Error logging in:', error);
+    }
+}
+
 function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
 }
@@ -53,42 +111,8 @@ function clearUsername() {
     localStorage.removeItem(USERNAME_KEY);
 }
 
-function loadVotesFromStorage() {
-    const stored = localStorage.getItem(VOTES_KEY);
-    if (stored) {
-        return JSON.parse(stored);
-    }
-    const initial = {};
-    participants.forEach(name => initial[name] = 0);
-    return initial;
-}
-
-function saveVotesToStorage() {
-    localStorage.setItem(VOTES_KEY, JSON.stringify(votesData));
-    broadcastUpdate();
-}
-
-function loadUsersFromStorage() {
-    const stored = localStorage.getItem(USERS_KEY);
-    return stored ? JSON.parse(stored) : {};
-}
-
-function saveUsersToStorage() {
-    localStorage.setItem(USERS_KEY, JSON.stringify(usersData));
-    broadcastUpdate();
-}
-
 function getUserVote(username) {
     return usersData[username]?.vote || '';
-}
-
-function setUserVote(username, candidate) {
-    if (!usersData[username]) {
-        usersData[username] = {};
-    }
-    usersData[username].vote = candidate;
-    usersData[username].timestamp = new Date().toISOString();
-    saveUsersToStorage();
 }
 
 function hasUserVoted(username) {
@@ -97,7 +121,7 @@ function hasUserVoted(username) {
 
 function updateVotes(votes) {
     votesData = { ...votes };
-    saveVotesToStorage();
+    broadcastUpdate();
 }
 
 function getTotalVotes(votes) {
@@ -185,7 +209,7 @@ function updateUserUI() {
     }
 }
 
-function handleRegister(event) {
+async function handleRegister(event) {
     event.preventDefault();
     const input = document.getElementById('username-input');
     const name = input.value.trim();
@@ -194,6 +218,7 @@ function handleRegister(event) {
         return;
     }
     saveUsername(name);
+    await loginUser(name);
     input.value = '';
     updateUserUI();
     if (typeof recordUserActivity === 'function') {
@@ -255,7 +280,7 @@ function renderParticipants() {
     updateSummary(votesData);
 }
 
-function voteForCandidate(candidateName) {
+async function voteForCandidate(candidateName) {
     const username = loadUsername();
     if (!username) {
         alert('Register with a username before voting.');
@@ -268,9 +293,7 @@ function voteForCandidate(candidateName) {
         return;
     }
 
-    const weight = Number(document.getElementById('vote-weight').value);
-    votesData[candidateName] += weight;
-    setUserVote(username, candidateName);
+    await submitVoteToServer(candidateName, username);
     selectedCandidate = candidateName;
     renderParticipants();
     document.getElementById('vote-status').textContent = `You voted for ${candidateName}!`;
@@ -429,9 +452,26 @@ function syncWeightDisplay() {
     document.getElementById('weight-display').textContent = document.getElementById('vote-weight').value;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+async function pollUpdates() {
+    await loadVotesFromServer();
+    await loadUsersFromServer();
+    renderParticipants();
+    updateSummary(votesData);
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
     // Initialize broadcast channel for tab sync
     initBroadcastChannel();
+
+    // Load initial data from server
+    await loadVotesFromServer();
+    await loadUsersFromServer();
+
+    // Login user if username exists
+    const username = loadUsername();
+    if (username) {
+        await loginUser(username);
+    }
 
     document.getElementById('submit-vote').addEventListener('click', submitVote);
     document.getElementById('view-results').addEventListener('click', viewResults);
@@ -444,4 +484,5 @@ document.addEventListener('DOMContentLoaded', () => {
     renderParticipants();
     updateCountdown();
     setInterval(updateCountdown, 1000);
+    setInterval(pollUpdates, 5000); // Poll every 5 seconds
 });

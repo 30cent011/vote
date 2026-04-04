@@ -103,51 +103,74 @@ if (document.getElementById('clear-votes-btn')) {
     }, 2000);
 }
 
-function loadAllUsers() {
-    const usersData = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-    return Object.keys(usersData);
+async function loadAllUsers() {
+    try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+            const users = await response.json();
+            return Object.keys(users);
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+    return [];
 }
 
-function getUserVoteInfo(username) {
-    const usersData = JSON.parse(localStorage.getItem(USERS_KEY) || '{}');
-    return usersData[username]?.vote || null;
+async function getUserVoteInfo(username) {
+    try {
+        const response = await fetch('/api/users');
+        if (response.ok) {
+            const users = await response.json();
+            return users[username]?.vote || null;
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+    return null;
 }
 
-function getAllVotes() {
-    return JSON.parse(localStorage.getItem(VOTES_KEY) || '{}');
+async function getAllVotes() {
+    try {
+        const response = await fetch('/api/votes');
+        if (response.ok) {
+            return await response.json();
+        }
+    } catch (error) {
+        console.error('Error loading votes:', error);
+    }
+    return {};
 }
 
 function getTotalVotes(votes) {
     return Object.values(votes).reduce((sum, count) => sum + count, 0);
 }
 
-function clearAllVotes() {
-    // Reset votes
-    const initialVotes = {};
-    PARTICIPANTS.forEach(name => initialVotes[name] = 0);
-    localStorage.setItem(VOTES_KEY, JSON.stringify(initialVotes));
-
-    // Clear all user votes
-    localStorage.setItem(USERS_KEY, JSON.stringify({}));
-
-    trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
-    loadDashboardData();
-}
+async function clearAllVotes() {
+    try {
+        const response = await fetch('/api/reset', { method: 'POST' });
+        if (response.ok) {
+            trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
+            loadDashboardData();
+        }
     } catch (error) {
-        console.error('Error clearing votes:', error);
+        console.error('Error resetting votes:', error);
     }
 }
 
-function loadDashboardData() {
-    const votes = getAllVotes();
+async function loadDashboardData() {
+    const votes = await getAllVotes();
     const totalVotes = getTotalVotes(votes);
-    const users = loadAllUsers();
+    const users = await loadAllUsers();
 
     document.getElementById('total-votes-stat').textContent = totalVotes;
     document.getElementById('active-users-stat').textContent = users.length;
 
-    const votedUsers = users.filter(user => getUserVoteInfo(user) !== null).length;
-    document.getElementById('voted-users-stat').textContent = votedUsers;
+    const votedUsers = [];
+    for (const user of users) {
+        const vote = await getUserVoteInfo(user);
+        if (vote) votedUsers.push(user);
+    }
+    document.getElementById('voted-users-stat').textContent = votedUsers.length;
 
     const voteTallyDiv = document.getElementById('vote-tally');
     if (totalVotes === 0) {
@@ -160,7 +183,7 @@ function loadDashboardData() {
     } else {
         let voteTallyHTML = '';
         PARTICIPANTS.forEach(name => {
-            const count = votes[name];
+            const count = votes[name] || 0;
             const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
             voteTallyHTML += `
                 <div class="vote-bar">
@@ -185,8 +208,8 @@ function loadDashboardData() {
         `;
     } else {
         let userActivityHTML = '';
-        users.forEach(username => {
-            const vote = getUserVoteInfo(username);
+        for (const username of users) {
+            const vote = await getUserVoteInfo(username);
             const voteStatus = vote ? ` voted for <strong>${vote}</strong>` : ' (no vote yet)';
             userActivityHTML += `
                 <div class="user-item">
