@@ -1,80 +1,59 @@
+// No credentials here — auth is server-side only via /api/admin/login
+const ADMIN_TOKEN_KEY = 'adminToken';
+const PARTICIPANTS    = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
+let sseSource = null;
 
-const ADMIN_TOKEN_KEY  = 'adminToken';
-const PARTICIPANTS     = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
-
-function getAdminToken() {
-    return sessionStorage.getItem(ADMIN_TOKEN_KEY) || '';
-}
-
-function saveAdminToken(token) {
-    sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
-}
-
-function clearAdminToken() {
-    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
-}
+// ── Session helpers ───────────────────────────────────────────────────────────
+function getAdminToken()    { return sessionStorage.getItem(ADMIN_TOKEN_KEY) || ''; }
+function saveAdminToken(t)  { sessionStorage.setItem(ADMIN_TOKEN_KEY, t); }
+function clearAdminToken()  { sessionStorage.removeItem(ADMIN_TOKEN_KEY); }
 
 function adminHeaders() {
-    return {
-        'Content-Type': 'application/json',
-        'x-admin-token': getAdminToken()
-    };
+    return { 'Content-Type': 'application/json', 'x-admin-token': getAdminToken() };
 }
 
 async function isAdminLoggedIn() {
     const token = getAdminToken();
     if (!token) return false;
     try {
-        const res = await fetch('/api/admin/verify', {
-            headers: { 'x-admin-token': token }
-        });
+        const res = await fetch('/api/admin/verify', { headers: { 'x-admin-token': token } });
         return res.ok;
-    } catch {
-        return false;
-    }
+    } catch { return false; }
 }
 
 async function logoutAdmin() {
-    await fetch('/api/admin/logout', {
-        method: 'POST',
-        headers: adminHeaders()
-    }).catch(() => {});
+    await fetch('/api/admin/logout', { method: 'POST', headers: adminHeaders() }).catch(() => {});
     clearAdminToken();
+    if (sseSource) sseSource.close();
     window.location.href = 'admin-login.html';
 }
 
-
+// ── Activity log (local) ──────────────────────────────────────────────────────
 function trackUserActivity(username, action, candidate = null) {
-    const USER_ACTIVITY_KEY = 'userActivity';
-    let activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
-    activities.push({
-        username,
-        action,
-        candidate,
-        timestamp: new Date().toISOString(),
-        time: new Date().toLocaleTimeString()
-    });
-    localStorage.setItem(USER_ACTIVITY_KEY, JSON.stringify(activities));
+    const key = 'userActivity';
+    const list = JSON.parse(localStorage.getItem(key) || '[]');
+    list.push({ username, action, candidate, timestamp: new Date().toISOString(), time: new Date().toLocaleTimeString() });
+    localStorage.setItem(key, JSON.stringify(list));
 }
 
 function recordUserActivity(username, action, candidate = null) {
     trackUserActivity(username, action, candidate);
 }
 
+// ── Login page ────────────────────────────────────────────────────────────────
 if (document.getElementById('login-form')) {
-    document.getElementById('login-form').addEventListener('submit', async function(e) {
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
         e.preventDefault();
-
         const email    = document.getElementById('admin-email').value.trim().toLowerCase();
         const password = document.getElementById('admin-password').value;
         const errorEl  = document.getElementById('error-message');
         const btn      = this.querySelector('button[type="submit"]');
 
-        btn.disabled = true;
+        btn.disabled    = true;
         btn.textContent = 'Signing in…';
 
         try {
-            const res = await fetch('/api/admin/login', {
+            const res  = await fetch('/api/admin/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -93,15 +72,14 @@ if (document.getElementById('login-form')) {
             errorEl.classList.add('show');
             document.getElementById('admin-password').value = '';
             setTimeout(() => errorEl.classList.remove('show'), 5000);
-            btn.disabled = false;
+            btn.disabled    = false;
             btn.textContent = 'Sign in';
         }
     });
 }
 
-
+// ── Dashboard page ────────────────────────────────────────────────────────────
 if (document.getElementById('clear-votes-btn')) {
-    // Guard: redirect to login if session is invalid
     (async () => {
         if (!(await isAdminLoggedIn())) {
             window.location.href = 'admin-login.html';
@@ -114,58 +92,69 @@ if (document.getElementById('clear-votes-btn')) {
 function initDashboard() {
     document.getElementById('logout-btn').addEventListener('click', logoutAdmin);
 
-    const modal       = document.getElementById('clear-modal');
-    const clearBtn    = document.getElementById('clear-votes-btn');
-    const cancelBtn   = document.getElementById('modal-cancel');
-    const confirmBtn  = document.getElementById('modal-confirm');
+    const modal      = document.getElementById('clear-modal');
+    const clearBtn   = document.getElementById('clear-votes-btn');
+    const cancelBtn  = document.getElementById('modal-cancel');
+    const confirmBtn = document.getElementById('modal-confirm');
 
-    clearBtn.addEventListener('click', () => modal.classList.add('active'));
+    clearBtn.addEventListener('click',  () => modal.classList.add('active'));
     cancelBtn.addEventListener('click', () => modal.classList.remove('active'));
     modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
 
     confirmBtn.addEventListener('click', async () => {
         await clearAllVotes();
         modal.classList.remove('active');
-        const notification = document.getElementById('success-notification');
-        notification.classList.add('show');
-        setTimeout(() => notification.classList.remove('show'), 3000);
+        const notif = document.getElementById('success-notification');
+        notif.classList.add('show');
+        setTimeout(() => notif.classList.remove('show'), 3000);
     });
 
-    loadDashboardData();
-    setInterval(loadDashboardData, 2000);
+    // SSE: dashboard updates in real-time whenever any session votes or resets
+    initSSE();
+    loadDashboardData(); // initial paint before SSE fires
 }
 
+function initSSE() {
+    if (sseSource) sseSource.close();
+    sseSource = new EventSource('/api/stream');
 
+    sseSource.addEventListener('init', (e) => {
+        const { votes, users } = JSON.parse(e.data);
+        renderDashboard(votes, users);
+    });
 
+    sseSource.addEventListener('votes-updated', (e) => {
+        const { votes, users } = JSON.parse(e.data);
+        renderDashboard(votes, users);
+    });
+
+    sseSource.onerror = () => {
+        sseSource.close();
+        setTimeout(initSSE, 3000);
+    };
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
 async function getAllVotes() {
-    try {
-        const res = await fetch('/api/votes');
-        if (res.ok) return await res.json();
-    } catch (e) { console.error('Error loading votes:', e); }
+    try { const r = await fetch('/api/votes'); if (r.ok) return r.json(); } catch {}
     return {};
 }
 
 async function getAllUsers() {
-    try {
-        const res = await fetch('/api/users');
-        if (res.ok) return await res.json();
-    } catch (e) { console.error('Error loading users:', e); }
+    try { const r = await fetch('/api/users'); if (r.ok) return r.json(); } catch {}
     return {};
 }
 
 function getTotalVotes(votes) {
-    return Object.values(votes).reduce((sum, n) => sum + n, 0);
+    return Object.values(votes).reduce((s, n) => s + n, 0);
 }
 
 async function clearAllVotes() {
     try {
-        const res = await fetch('/api/reset', {
-            method: 'POST',
-            headers: adminHeaders()
-        });
+        const res = await fetch('/api/reset', { method: 'POST', headers: adminHeaders() });
         if (res.ok) {
             trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
-            await loadDashboardData();
+            // SSE push from server will update dashboard automatically
         } else if (res.status === 403) {
             alert('Session expired. Please log in again.');
             clearAdminToken();
@@ -175,53 +164,46 @@ async function clearAllVotes() {
 }
 
 async function loadDashboardData() {
-    // Fetch votes and users in parallel — one request each, not one-per-user
     const [votes, usersObj] = await Promise.all([getAllVotes(), getAllUsers()]);
-    const totalVotes = getTotalVotes(votes);
-    const userEntries = Object.entries(usersObj); // [[username, {vote, timestamp}], ...]
+    renderDashboard(votes, usersObj);
+}
+
+function renderDashboard(votes, usersObj) {
+    const totalVotes  = getTotalVotes(votes);
+    const userEntries = Object.entries(usersObj);
     const votedCount  = userEntries.filter(([, u]) => u.vote).length;
 
-    document.getElementById('total-votes-stat').textContent = totalVotes;
+    document.getElementById('total-votes-stat').textContent  = totalVotes;
     document.getElementById('active-users-stat').textContent = userEntries.length;
-    document.getElementById('voted-users-stat').textContent = votedCount;
+    document.getElementById('voted-users-stat').textContent  = votedCount;
 
     // Vote tally bars
-    const voteTallyDiv = document.getElementById('vote-tally');
+    const tallyDiv = document.getElementById('vote-tally');
     if (totalVotes === 0) {
-        voteTallyDiv.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">📊</div>
-                <p>No votes yet</p>
-            </div>`;
+        tallyDiv.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><p>No votes yet</p></div>`;
     } else {
-        voteTallyDiv.innerHTML = PARTICIPANTS.map(name => {
+        tallyDiv.innerHTML = PARTICIPANTS.map(name => {
             const count      = votes[name] || 0;
             const percentage = Math.round((count / totalVotes) * 100);
             return `
                 <div class="vote-bar">
                     <div class="vote-label">${name}</div>
                     <div class="vote-progress">
-                        <div class="vote-fill" style="width: ${percentage}%">${count > 0 ? percentage + '%' : ''}</div>
+                        <div class="vote-fill" style="width:${percentage}%">${count > 0 ? percentage + '%' : ''}</div>
                     </div>
                     <div class="vote-count">${count}</div>
                 </div>`;
         }).join('');
     }
 
-    // User activity list
-    const userActivityDiv = document.getElementById('user-activity');
+    // User list
+    const activityDiv = document.getElementById('user-activity');
     if (userEntries.length === 0) {
-        userActivityDiv.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">👥</div>
-                <p>No registered users yet</p>
-            </div>`;
+        activityDiv.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👥</div><p>No registered users yet</p></div>`;
     } else {
-        userActivityDiv.innerHTML = userEntries.map(([username, info]) => {
+        activityDiv.innerHTML = userEntries.map(([username, info]) => {
             const vote       = info.vote || '';
-            const voteStatus = vote
-                ? ` voted for <strong>${vote}</strong>`
-                : ' (no vote yet)';
+            const voteStatus = vote ? ` voted for <strong>${vote}</strong>` : ' (no vote yet)';
             return `
                 <div class="user-item">
                     <div class="user-info">
@@ -234,16 +216,12 @@ async function loadDashboardData() {
     }
 }
 
-
-document.addEventListener('keydown', async function(e) {
+// ── Keyboard shortcut Ctrl+Alt+L ──────────────────────────────────────────────
+document.addEventListener('keydown', async function (e) {
     if (e.ctrlKey && e.altKey && e.key === 'l') {
         e.preventDefault();
         const page = window.location.pathname;
         if (page.includes('admin-login') || page.includes('admin-dashboard')) return;
-        if (await isAdminLoggedIn()) {
-            window.location.href = 'admin-dashboard.html';
-        } else {
-            window.location.href = 'admin-login.html';
-        }
+        window.location.href = await isAdminLoggedIn() ? 'admin-dashboard.html' : 'admin-login.html';
     }
 });

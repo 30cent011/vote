@@ -5,84 +5,66 @@ const participantAvatars = {
     Eliman: 'image/eliman.jpg',
     Isreal: 'image/isreal.jpg',
     Marwan: 'image/marwan.webp',
-    Suraj: 'image/suraj.jpg'
+    Suraj:  'image/suraj.jpg'
 };
+
 let selectedCandidate = null;
-let chartInstance = null;
-let votesData = {};
-let usersData = {};
-let broadcastChannel = null;
+let chartInstance     = null;
+let votesData         = {};
+let usersData         = {};
+let sseSource         = null;
 
-// Initialize broadcast channel for same-browser tab sync
-function initBroadcastChannel() {
-    if (typeof BroadcastChannel !== 'undefined') {
-        broadcastChannel = new BroadcastChannel('vote-sync');
-        broadcastChannel.onmessage = (event) => {
-            if (event.data.type === 'votes-updated') {
-                votesData = event.data.votes;
-                usersData = event.data.users;
-                renderParticipants(votesData);
-                updateSummary(votesData);
-            }
-        };
-    }
+// ── SSE: real-time sync across all sessions ───────────────────────────────────
+function initSSE() {
+    if (sseSource) sseSource.close();
+
+    sseSource = new EventSource('/api/stream');
+
+    // Server sends current state on connect
+    sseSource.addEventListener('init', (e) => {
+        const data = JSON.parse(e.data);
+        votesData = data.votes;
+        usersData = data.users;
+        renderParticipants();
+        updateSummary(votesData);
+        updateUserUI();
+    });
+
+    // Server pushes after every vote or reset
+    sseSource.addEventListener('votes-updated', (e) => {
+        const data = JSON.parse(e.data);
+        votesData = data.votes;
+        usersData = data.users;
+        renderParticipants();
+        updateSummary(votesData);
+        updateUserUI();
+    });
+
+    sseSource.onerror = () => {
+        // Connection dropped — reconnect after 3 s
+        sseSource.close();
+        setTimeout(initSSE, 3000);
+    };
 }
 
-// Broadcast updates to other tabs
-function broadcastUpdate() {
-    if (broadcastChannel) {
-        broadcastChannel.postMessage({
-            type: 'votes-updated',
-            votes: votesData,
-            users: usersData
-        });
-    }
-}
-
-async function loadVotesFromServer() {
-    try {
-        const response = await fetch('/api/votes');
-        if (response.ok) {
-            votesData = await response.json();
-        } else {
-            votesData = {};
-            participants.forEach(name => votesData[name] = 0);
-        }
-    } catch (error) {
-        console.error('Error loading votes:', error);
-        votesData = {};
-        participants.forEach(name => votesData[name] = 0);
-    }
-}
-
-async function loadUsersFromServer() {
-    try {
-        const response = await fetch('/api/users');
-        if (response.ok) {
-            usersData = await response.json();
-        } else {
-            usersData = {};
-        }
-    } catch (error) {
-        console.error('Error loading users:', error);
-        usersData = {};
-    }
-}
-
+// ── Server helpers ────────────────────────────────────────────────────────────
 async function submitVoteToServer(candidate, username) {
     try {
         const response = await fetch('/api/votes', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ candidate, username })
+            body:    JSON.stringify({ candidate, username })
         });
         if (response.ok) {
             const data = await response.json();
+            // SSE will push the update to all sessions including this one,
+            // but we also update locally so the UI feels instant
             votesData = data.votes;
             usersData = data.users;
-            broadcastUpdate();
             return true;
         }
+        const err = await response.json().catch(() => ({}));
+        console.error('Vote rejected:', err.error);
     } catch (error) {
         console.error('Error submitting vote:', error);
     }
@@ -92,49 +74,28 @@ async function submitVoteToServer(candidate, username) {
 async function loginUser(username) {
     try {
         await fetch('/api/login', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username })
+            body:    JSON.stringify({ username })
         });
     } catch (error) {
         console.error('Error logging in:', error);
     }
 }
 
-function loadUsername() {
-    return localStorage.getItem(USERNAME_KEY) || '';
-}
-
-function saveUsername(username) {
-    localStorage.setItem(USERNAME_KEY, username);
-}
-
-function clearUsername() {
-    localStorage.removeItem(USERNAME_KEY);
-}
-
-function getUserVote(username) {
-    return usersData[username]?.vote || '';
-}
-
-function hasUserVoted(username) {
-    return Boolean(getUserVote(username));
-}
-
-function updateVotes(votes) {
-    votesData = { ...votes };
-    broadcastUpdate();
-}
-
-function getTotalVotes(votes) {
-    return Object.values(votes).reduce((sum, count) => sum + count, 0);
-}
-
+// ── Local state ───────────────────────────────────────────────────────────────
+function loadUsername()       { return localStorage.getItem(USERNAME_KEY) || ''; }
+function saveUsername(name)   { localStorage.setItem(USERNAME_KEY, name); }
+function clearUsername()      { localStorage.removeItem(USERNAME_KEY); }
+function getUserVote(u)       { return usersData[u]?.vote || ''; }
+function hasUserVoted(u)      { return Boolean(getUserVote(u)); }
+function getTotalVotes(votes) { return Object.values(votes).reduce((s, n) => s + n, 0); }
 function getTopChoice(votes) {
     const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
     return sorted[0] || ['None', 0];
 }
 
+// ── Countdown ─────────────────────────────────────────────────────────────────
 function getDeadline() {
     let stored = localStorage.getItem(DEADLINE_KEY);
     if (!stored) {
@@ -145,45 +106,41 @@ function getDeadline() {
     return Number(stored);
 }
 
-function formatRemaining(milliseconds) {
-    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
+function formatRemaining(ms) {
+    const t = Math.max(0, Math.floor(ms / 1000));
+    const d = Math.floor(t / 86400);
+    const h = Math.floor((t % 86400) / 3600);
+    const m = Math.floor((t % 3600) / 60);
+    const s = t % 60;
+    return `${d}d ${h}h ${m}m ${s}s`;
 }
 
 function updateCountdown() {
-    const timer = document.getElementById('countdown-timer');
+    const timer        = document.getElementById('countdown-timer');
     const submitButton = document.getElementById('submit-vote');
-    const remaining = getDeadline() - Date.now();
-    const username = loadUsername();
-    const disabledForUser = !username || hasUserVoted(username);
+    const remaining    = getDeadline() - Date.now();
+    const username     = loadUsername();
 
     if (remaining <= 0) {
-        timer.textContent = 'Voting closed';
+        timer.textContent    = 'Voting closed';
         submitButton.disabled = true;
         submitButton.classList.add('disabled');
         return;
     }
 
     timer.textContent = formatRemaining(remaining);
-    if (disabledForUser) {
-        submitButton.disabled = true;
-        submitButton.classList.add('disabled');
-    } else {
-        submitButton.disabled = false;
-        submitButton.classList.remove('disabled');
-    }
+    const blocked = !username || hasUserVoted(username);
+    submitButton.disabled = blocked;
+    submitButton.classList.toggle('disabled', blocked);
 }
 
+// ── UI updates ────────────────────────────────────────────────────────────────
 function updateUserUI() {
-    const username = loadUsername();
-    const userStatus = document.getElementById('user-status');
-    const form = document.getElementById('registration-form');
+    const username     = loadUsername();
+    const userStatus   = document.getElementById('user-status');
+    const form         = document.getElementById('registration-form');
     const logoutButton = document.getElementById('logout-button');
-    const voteStatus = document.getElementById('vote-status');
+    const voteStatus   = document.getElementById('vote-status');
     const submitButton = document.getElementById('submit-vote');
 
     if (username) {
@@ -194,10 +151,12 @@ function updateUserUI() {
 
         if (votedFor) {
             voteStatus.textContent = `You already voted for ${votedFor}.`;
-            submitButton.disabled = true;
+            submitButton.disabled  = true;
             submitButton.classList.add('disabled');
         } else {
-            voteStatus.textContent = selectedCandidate ? `Ready to vote as ${username}.` : `Select a candidate to vote as ${username}.`;
+            voteStatus.textContent = selectedCandidate
+                ? `Ready to vote as ${username}.`
+                : `Select a candidate to vote as ${username}.`;
             submitButton.disabled = false;
             submitButton.classList.remove('disabled');
         }
@@ -206,7 +165,7 @@ function updateUserUI() {
         form.classList.remove('hidden');
         logoutButton.classList.add('hidden');
         voteStatus.textContent = 'Register to start voting.';
-        submitButton.disabled = true;
+        submitButton.disabled  = true;
         submitButton.classList.add('disabled');
     }
 }
@@ -214,43 +173,39 @@ function updateUserUI() {
 async function handleRegister(event) {
     event.preventDefault();
     const input = document.getElementById('username-input');
-    const name = input.value.trim();
-    if (!name) {
-        alert('Choose a username to continue.');
-        return;
-    }
+    const name  = input.value.trim();
+    if (!name) { alert('Choose a username to continue.'); return; }
     saveUsername(name);
     await loginUser(name);
     input.value = '';
     updateUserUI();
-    if (typeof recordUserActivity === 'function') {
-        recordUserActivity(name, 'REGISTERED');
-    }
+    if (typeof recordUserActivity === 'function') recordUserActivity(name, 'REGISTERED');
     alert(`Registered as ${name}.`);
 }
 
 function handleLogout() {
     clearUsername();
     selectedCandidate = null;
-    updateSelection();
+    document.getElementById('selected-name').textContent = 'None';
+    renderParticipants();
     updateUserUI();
 }
 
+// ── Render ────────────────────────────────────────────────────────────────────
 function renderParticipants() {
     renderImageGallery();
     renderProbabilityGraph(votesData);
 
     const total = getTotalVotes(votesData);
-    const list = document.getElementById('participants');
+    const list  = document.getElementById('participants');
     list.innerHTML = '';
 
     participants.forEach(name => {
         const count = votesData[name] ?? 0;
         const share = total === 0 ? 0 : Math.round((count / total) * 100);
-        const card = document.createElement('article');
-        card.className = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
+        const card  = document.createElement('article');
+        card.className    = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
         card.dataset.name = name;
-        card.style.cursor = 'pointer';
         card.innerHTML = `
             <div class="card-top">
                 <div>
@@ -259,7 +214,7 @@ function renderParticipants() {
                 </div>
                 <div class="vote-count">${share}%</div>
             </div>
-            <div class="share-bar"><div class="share-fill" style="width: ${share}%;"></div></div>
+            <div class="share-bar"><div class="share-fill" style="width:${share}%;"></div></div>
             <div class="vote-actions">
                 <button class="vote-button">Vote for ${name}</button>
             </div>
@@ -273,7 +228,9 @@ function renderParticipants() {
         card.addEventListener('click', (e) => {
             if (e.target.closest('.vote-button')) return;
             selectedCandidate = name;
-            updateSelection();
+            document.getElementById('selected-name').textContent = name;
+            renderParticipants();
+            updateUserUI();
         });
 
         list.appendChild(card);
@@ -282,40 +239,9 @@ function renderParticipants() {
     updateSummary(votesData);
 }
 
-async function voteForCandidate(candidateName) {
-    const username = loadUsername();
-    if (!username) {
-        alert('Register with a username before voting.');
-        return;
-    }
-
-    if (hasUserVoted(username)) {
-        alert('You have already voted once.');
-        updateUserUI();
-        return;
-    }
-
-    const success = await submitVoteToServer(candidateName, username);
-    if (!success) {
-        alert('Failed to submit vote. Please try again.');
-        return;
-    }
-
-    // usersData and votesData are now updated from the server response
-    selectedCandidate = candidateName;
-    document.getElementById('selected-name').textContent = candidateName;
-    renderParticipants();   // re-render with fresh counts
-    updateUserUI();         // disable button now that hasUserVoted() returns true
-    if (typeof recordUserActivity === 'function') {
-        recordUserActivity(username, 'VOTED', candidateName);
-    }
-    alert(`Voted for ${candidateName} as ${username}!`);
-}
-
 function renderImageGallery() {
     const gallery = document.getElementById('image-gallery');
     gallery.innerHTML = '';
-
     participants.forEach(name => {
         const card = document.createElement('div');
         card.className = 'avatar-card';
@@ -328,30 +254,29 @@ function renderImageGallery() {
 }
 
 function renderProbabilityGraph(votes) {
-    const total = getTotalVotes(votes);
     const chartCanvas = document.getElementById('probability-graph');
     if (!chartCanvas) return;
 
-    const data = participants.map(name => {
-        const count = votes[name];
-        return total === 0 ? 0 : Math.round((count / total) * 100);
-    });
+    const total = getTotalVotes(votes);
+    const data  = participants.map(name =>
+        total === 0 ? 0 : Math.round(((votes[name] ?? 0) / total) * 100)
+    );
 
     const chartData = {
         labels: participants,
         datasets: [{
             label: 'Vote Share (%)',
-            data: data,
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56, 189, 248, 0.12)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
+            data,
+            borderColor:        '#38bdf8',
+            backgroundColor:    'rgba(56,189,248,0.12)',
+            borderWidth:        2,
+            fill:               true,
+            tension:            0.4,
             pointBackgroundColor: '#7dd3fc',
-            pointBorderColor: '#38bdf8',
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBorderWidth: 2
+            pointBorderColor:   '#38bdf8',
+            pointRadius:        5,
+            pointHoverRadius:   7,
+            pointBorderWidth:   2
         }]
     };
 
@@ -359,137 +284,101 @@ function renderProbabilityGraph(votes) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: {
-                display: true,
-                labels: {
-                    color: '#cbd5e1',
-                    font: { size: 12, weight: '600' }
-                }
-            },
+            legend: { display: true, labels: { color: '#cbd5e1', font: { size: 12, weight: '600' } } },
             tooltip: {
-                backgroundColor: 'rgba(15, 23, 42, 0.92)',
+                backgroundColor: 'rgba(15,23,42,0.92)',
                 titleColor: '#f8fafc',
-                bodyColor: '#cbd5e1',
-                borderColor: 'rgba(148, 163, 184, 0.18)',
+                bodyColor:  '#cbd5e1',
+                borderColor: 'rgba(148,163,184,0.18)',
                 borderWidth: 1,
                 padding: 10,
                 displayColors: false,
-                callbacks: {
-                    label: function(context) {
-                        return `${context.parsed.y}%`;
-                    }
-                }
+                callbacks: { label: ctx => `${ctx.parsed.y}%` }
             }
         },
         scales: {
             y: {
-                beginAtZero: true,
-                max: 100,
-                ticks: {
-                    color: '#94a3b8',
-                    callback: function(value) {
-                        return value + '%';
-                    }
-                },
-                grid: {
-                    color: 'rgba(148, 163, 184, 0.12)'
-                }
+                beginAtZero: true, max: 100,
+                ticks:  { color: '#94a3b8', callback: v => v + '%' },
+                grid:   { color: 'rgba(148,163,184,0.12)' }
             },
             x: {
-                ticks: {
-                    color: '#94a3b8'
-                },
-                grid: {
-                    color: 'rgba(148, 163, 184, 0.08)'
-                }
+                ticks: { color: '#94a3b8' },
+                grid:  { color: 'rgba(148,163,184,0.08)' }
             }
         }
     };
 
     if (chartInstance) {
-        chartInstance.data = chartData;
+        chartInstance.data    = chartData;
         chartInstance.options = chartOptions;
         chartInstance.update('active');
     } else {
-        const ctx = chartCanvas.getContext('2d');
-        chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: chartData,
-            options: chartOptions
+        chartInstance = new Chart(chartCanvas.getContext('2d'), {
+            type: 'line', data: chartData, options: chartOptions
         });
     }
 }
 
 function updateSummary(votes) {
-    const total = getTotalVotes(votes);
-    const [topName, topCount] = getTopChoice(votes);
-    const topShare = total === 0 ? 0 : Math.round((topCount / total) * 100);
-
+    const total                 = getTotalVotes(votes);
+    const [topName, topCount]   = getTopChoice(votes);
+    const topShare              = total === 0 ? 0 : Math.round((topCount / total) * 100);
     document.getElementById('total-votes').textContent = total;
-    document.getElementById('top-choice').textContent = topName;
-    document.getElementById('top-share').textContent = `${topShare}%`;
+    document.getElementById('top-choice').textContent  = topName;
+    document.getElementById('top-share').textContent   = `${topShare}%`;
 }
 
-function updateSelection() {
-    document.getElementById('selected-name').textContent = selectedCandidate || 'None';
-    renderParticipants();   // re-render cards so selected highlight moves
+// ── Voting action ─────────────────────────────────────────────────────────────
+async function voteForCandidate(candidateName) {
+    const username = loadUsername();
+    if (!username) { alert('Register with a username before voting.'); return; }
+    if (hasUserVoted(username)) {
+        alert('You have already voted once.');
+        updateUserUI();
+        return;
+    }
+
+    const success = await submitVoteToServer(candidateName, username);
+    if (!success) { alert('Failed to submit vote. Please try again.'); return; }
+
+    // Local state already updated by submitVoteToServer; SSE will sync all others
+    selectedCandidate = candidateName;
+    document.getElementById('selected-name').textContent = candidateName;
+    renderParticipants();
     updateUserUI();
+    if (typeof recordUserActivity === 'function') recordUserActivity(username, 'VOTED', candidateName);
+    alert(`Voted for ${candidateName} as ${username}!`);
 }
 
 function submitVote() {
     const username = loadUsername();
-    if (!username) {
-        alert('Register with a username before voting.');
-        return;
-    }
-
-    if (!selectedCandidate) {
-        alert('Please select a candidate before voting.');
-        return;
-    }
-
+    if (!username)        { alert('Register with a username before voting.'); return; }
+    if (!selectedCandidate) { alert('Please select a candidate before voting.'); return; }
     voteForCandidate(selectedCandidate);
 }
 
-function viewResults() {
-    window.location.href = 'results.html';
-}
-
 function syncWeightDisplay() {
-    document.getElementById('weight-display').textContent = document.getElementById('vote-weight').value;
+    document.getElementById('weight-display').textContent =
+        document.getElementById('vote-weight').value;
 }
 
-async function pollUpdates() {
-    await loadVotesFromServer();
-    await loadUsersFromServer();
-    renderParticipants();
-    updateSummary(votesData);
-}
-
+// ── Boot ──────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize broadcast channel for tab sync
-    initBroadcastChannel();
+    // SSE replaces polling — one persistent connection, instant updates everywhere
+    initSSE();
 
-    // Load initial data from server
-    await loadVotesFromServer();
-    await loadUsersFromServer();
-
-    // Login user if username exists
+    // Re-register with server so usersData is populated on refresh
     const username = loadUsername();
-    if (username) {
-        await loginUser(username);
-    }
+    if (username) await loginUser(username);
 
     document.getElementById('submit-vote').addEventListener('click', submitVote);
-    document.getElementById('view-results').addEventListener('click', viewResults);
+    document.getElementById('view-results').addEventListener('click', () => { window.location.href = 'results.html'; });
     document.getElementById('registration-form').addEventListener('submit', handleRegister);
     document.getElementById('logout-button').addEventListener('click', handleLogout);
     document.getElementById('vote-weight').addEventListener('input', syncWeightDisplay);
 
     syncWeightDisplay();
-    updateUserUI();
-    renderParticipants();
     updateCountdown();
     setInterval(updateCountdown, 1000);
-    setInterval(pollUpdates, 5000); // Poll every 5 seconds
 });
