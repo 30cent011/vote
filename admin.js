@@ -25,6 +25,18 @@ function logoutAdmin() {
     window.location.href = 'admin-login.html';
 }
 
+// Console command to open admin panel (password protected)
+window.openAdmin = function(password) {
+    const ADMIN_PASSWORD = 'HEISENBERG67l+';
+    if (password === ADMIN_PASSWORD) {
+        localStorage.setItem(ADMIN_SESSION_KEY, ADMIN_TOKEN);
+        window.location.href = 'admin-dashboard.html';
+        console.log('✅ Admin access enabled! Redirecting...');
+    } else {
+        console.error('❌ Invalid password! Access denied.');
+    }
+};
+
 function trackUserActivity(username, action, candidate = null) {
     let activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
     activities.push({
