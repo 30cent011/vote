@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kick Vote - Market Style Voting</title>
+    <link rel="stylesheet" href="vote.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <header class="hero">
+        <div class="logo-area">
+            <img src="image/logo.jpg" alt="Kick Vote Logo" class="logo-image">
+        </div>
+        <div class="hero-copy">
+            <span class="tag">Prediction Market</span>
+            <h1>Who will get kicked first?</h1>
+            <p>Vote on who will get kicked first. Each vote changes the live market statistics and overall ranking.</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-card">
+                <span>Total Votes</span>
+                <strong id="total-votes">0</strong>
+            </div>
+            <div class="stat-card">
+                <span>Top Contender</span>
+                <strong id="top-choice">None</strong>
+            </div>
+            <div class="stat-card">
+                <span>Leading Share</span>
+                <strong id="top-share">0%</strong>
+            </div>
+        </div>
+        <div class="hero-account">
+            <div class="account-card">
+                <div class="account-header">Account</div>
+                <div class="account-body">
+                    <div id="user-status" class="account-status">Not registered yet</div>
+                    <form id="registration-form" class="account-form">
+                        <input id="username-input" type="text" placeholder="Choose a username" autocomplete="username">
+                        <button type="submit" class="primary">Register</button>
+                    </form>
+                    <button id="logout-button" class="tertiary hidden">Logout</button>
+                </div>
+            </div>
+            <div class="countdown-card">
+                <span>Voting ends in</span>
+                <strong id="countdown-timer">30d 0h 0m 0s</strong>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout-grid">
+        <section class="market-panel">
+            <div class="panel-heading">
+                <h2>Who Gets Kicked First?</h2>
+                <p>See current vote shares and choose who to push to the top of the kick list.</p>
+            </div>
+            <div class="image-gallery" id="image-gallery"></div>
+            <div class="probability-panel">
+                <div class="panel-heading">
+                    <h3>Vote Distribution Chart</h3>
+                    <p>Real-time visualization of votes across all candidates.</p>
+                </div>
+                <div class="chart-container">
+                    <canvas id="probability-graph"></canvas>
+                </div>
+            </div>
+            <div id="participants" class="participant-list"></div>
+        </section>
+
+        <aside class="activity-panel">
+            <div class="panel-heading">
+                <h2>Pick Who Gets Kicked First</h2>
+                <p>Choose a candidate, set your vote weight, and cast your vote.</p>
+            </div>
+            <div class="trade-card">
+                <label for="selected-name">Selected Candidate</label>
+                <div id="selected-name" class="selected-name">None</div>
+            </div>
+            <div class="trade-card">
+                <label for="vote-weight">Vote Weight</label>
+                <input type="range" id="vote-weight" min="1" max="5" value="1">
+                <div class="weight-value"><span id="weight-display">1</span> vote(s)</div>
+            </div>
+            <div class="trade-card">
+                <div id="vote-status" class="vote-note">Register to start voting.</div>
+            </div>
+            <div class="trade-card action-group">
+                <button id="submit-vote" class="primary">Submit Vote</button>
+                <button id="view-results" class="secondary">View Results</button>
+            </div>
+        </aside>
+    </main>
+
+    <script src="vote.js"></script>
+</body>
+</html>

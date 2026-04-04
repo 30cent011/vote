@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Kick Vote</title>
+    <link rel="stylesheet" href="vote.css">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        .admin-container {
+            min-height: 100vh;
+            background: var(--bg-deep, #080e1a);
+            background-image:
+                radial-gradient(ellipse 60% 40% at 0% 0%, rgba(14,165,233,0.1) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 30% at 100% 80%, rgba(56,189,248,0.06) 0%, transparent 50%);
+            padding: 2rem 1rem;
+            font-family: var(--font-body, 'DM Sans', sans-serif);
+        }
+
+        .admin-header {
+            max-width: 1400px;
+            margin: 0 auto 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .admin-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .admin-title h1 {
+            color: #f1f5f9;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-size: 1.9rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .admin-badge {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            padding: 0.4rem 0.9rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .admin-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 0.7rem 1.4rem;
+            border: none;
+            border-radius: 14px;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            font-size: 0.82rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(148, 163, 184, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(148, 163, 184, 0.16);
+            border-color: rgba(56, 189, 248, 0.4);
+        }
+
+        .dashboard-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.25rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-box {
+            background: rgba(13, 21, 38, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.12);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            transition: border-color 0.2s ease;
+        }
+
+        .stat-box:hover { border-color: rgba(56, 189, 248, 0.3); }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.78rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 600;
+        }
+
+        .stat-value {
+            color: #38bdf8;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .stat-description {
+            color: #475569;
+            font-size: 0.82rem;
+            margin-top: 0.4rem;
+        }
+
+        .content-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .panel {
+            background: rgba(13, 21, 38, 0.8);
+            border: 1px solid rgba(56, 189, 248, 0.12);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+            background: rgba(17, 29, 51, 0.5);
+        }
+
+        .panel-header h2 {
+            color: #f1f5f9;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+
+        .panel-body { padding: 1.5rem; }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(17, 29, 51, 0.5);
+            border-radius: 14px;
+            margin-bottom: 0.65rem;
+            border: 1px solid rgba(56, 189, 248, 0.08);
+            transition: border-color 0.2s ease, background 0.2s ease;
+        }
+
+        .user-item:hover {
+            background: rgba(56, 189, 248, 0.06);
+            border-color: rgba(56, 189, 248, 0.25);
+        }
+
+        .user-info { flex: 1; }
+
+        .user-name {
+            color: #f1f5f9;
+            font-weight: 600;
+            margin-bottom: 0.2rem;
+        }
+
+        .user-meta { color: #64748b; font-size: 0.83rem; }
+
+        .user-vote {
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            padding: 0.4rem 0.7rem;
+            border-radius: 8px;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            font-size: 0.82rem;
+        }
+
+        .vote-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.85rem;
+            padding: 0.9rem 1rem;
+            background: rgba(17, 29, 51, 0.5);
+            border-radius: 14px;
+            border: 1px solid rgba(56, 189, 248, 0.08);
+        }
+
+        .vote-label {
+            color: #e2e8f0;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            min-width: 90px;
+            margin-right: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .vote-progress {
+            flex: 1;
+            background: rgba(17, 29, 51, 0.8);
+            height: 28px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(56, 189, 248, 0.08);
+        }
+
+        .vote-fill {
+            background: linear-gradient(90deg, #38bdf8, #7dd3fc);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0f172a;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            font-size: 0.8rem;
+            transition: width 0.4s ease;
+        }
+
+        .vote-count {
+            color: #60a5fa;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 800;
+            min-width: 50px;
+            text-align: right;
+            margin-left: 1rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: #64748b;
+        }
+
+        .empty-state-icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: rgba(8, 14, 26, 0.97);
+            border: 1px solid rgba(56, 189, 248, 0.2);
+            border-radius: 22px;
+            padding: 2rem;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+        }
+
+        .modal-header {
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #f1f5f9;
+            margin-bottom: 0.85rem;
+        }
+
+        .modal-description {
+            color: #94a3b8;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .modal-btn {
+            padding: 0.7rem 1.4rem;
+            border: none;
+            border-radius: 12px;
+            font-family: var(--font-head, 'Syne', sans-serif);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .modal-btn-cancel {
+            background: rgba(148, 163, 184, 0.08);
+            color: #e2e8f0;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+        }
+
+        .modal-btn-cancel:hover { background: rgba(148, 163, 184, 0.16); }
+
+        .modal-btn-confirm {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .modal-btn-confirm:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
+        }
+
+        .success-notification {
+            background: rgba(34, 197, 94, 0.08);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #86efac;
+            padding: 1rem 1.25rem;
+            border-radius: 14px;
+            margin-bottom: 1.25rem;
+            display: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .success-notification.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @media (max-width: 900px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .admin-header { flex-direction: column; align-items: flex-start; }
+            .admin-actions { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <div class="admin-title">
+                <h1>🎯 Master Dashboard</h1>
+                <div class="admin-badge">Admin</div>
+            </div>
+            <div class="admin-actions">
+                <button class="btn btn-danger" id="clear-votes-btn">🗑️ Clear All Votes</button>
+                <button class="btn btn-secondary" id="logout-btn">Logout</button>
+            </div>
+        </div>
+
+        <div id="success-notification" class="success-notification">
+            ✓ Votes cleared successfully!
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="stat-box">
+                <div class="stat-label">Total Votes Cast</div>
+                <div class="stat-value" id="total-votes-stat">0</div>
+                <div class="stat-description">All candidates combined</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">Active Users</div>
+                <div class="stat-value" id="active-users-stat">0</div>
+                <div class="stat-description">Registered voters</div>
+            </div>
+
+            <div class="stat-box">
+                <div class="stat-label">Users Voted</div>
+                <div class="stat-value" id="voted-users-stat">0</div>
+                <div class="stat-description">Cast a vote</div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>Live Vote Tally</h2>
+                </div>
+                <div class="panel-body" id="vote-tally">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📊</div>
+                        <p>No votes yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2>📹 User Activity</h2>
+                </div>
+                <div class="panel-body" id="user-activity">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👥</div>
+                        <p>No registered users yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Clear Votes Modal -->
+    <div id="clear-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">⚠️ Clear All Votes?</div>
+            <div class="modal-description">
+                This action will permanently clear all votes from the system. This cannot be undone. Are you sure you want to proceed?
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-cancel" id="modal-cancel">Cancel</button>
+                <button class="modal-btn modal-btn-confirm" id="modal-confirm">Clear Votes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

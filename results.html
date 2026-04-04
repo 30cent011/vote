@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote Market Results</title>
+    <link rel="stylesheet" href="vote.css">
+</head>
+<body>
+    <header class="hero">
+        <div class="hero-copy">
+            <span class="tag">Market Summary</span>
+            <h1>Results Dashboard</h1>
+            <p>Ranked results with vote share, updated live from your voting market.</p>
+            <p id="results-user-message" class="results-user">Not registered</p>
+        </div>
+        <div class="hero-stats">
+            <div class="stat-card">
+                <span>Total Votes</span>
+                <strong id="results-total">0</strong>
+            </div>
+            <div class="stat-card">
+                <span>Leading Candidate</span>
+                <strong id="results-leader">None</strong>
+            </div>
+            <div class="stat-card">
+                <span>Winning Share</span>
+                <strong id="results-share">0%</strong>
+            </div>
+        </div>
+    </header>
+
+    <main class="layout-grid">
+        <section class="market-panel">
+            <div class="panel-heading">
+                <h2>Final Rankings</h2>
+                <p>Review the vote leaderboard and discover who has the strongest support.</p>
+            </div>
+            <div id="results-list" class="participant-list"></div>
+        </section>
+
+        <aside class="activity-panel">
+            <div class="panel-heading">
+                <h2>Actions</h2>
+                <p>Return to voting or clear the current market data.</p>
+            </div>
+            <div class="trade-card action-group">
+                <button onclick="window.location.href='index.html'" class="secondary">Back to Voting</button>
+                <button id="reset-votes" class="tertiary">Reset Votes</button>
+            </div>
+        </aside>
+    </main>
+
+    <script src="results.js"></script>
+</body>
+</html>

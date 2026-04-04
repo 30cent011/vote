@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Login - Kick Vote</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-deep:     #080e1a;
+            --bg-card:     #0d1526;
+            --bg-surface:  #111d33;
+            --border:      rgba(56, 189, 248, 0.12);
+            --accent:      #38bdf8;
+            --red:         #ef4444;
+            --red-dim:     #dc2626;
+            --text-white:  #f1f5f9;
+            --text-muted:  #64748b;
+            --font-head:   'Syne', sans-serif;
+            --font-body:   'DM Sans', sans-serif;
+        }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-deep);
+            background-image:
+                radial-gradient(ellipse 60% 50% at 0% 0%, rgba(14,165,233,0.12) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 40% at 100% 100%, rgba(56,189,248,0.06) 0%, transparent 50%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            color: #cbd5e1;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 2.5rem;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--red);
+            padding: 0.35rem 0.9rem;
+            border-radius: 999px;
+            font-family: var(--font-head);
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .login-header h1 {
+            font-family: var(--font-head);
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: var(--text-white);
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.02em;
+        }
+
+        .login-header p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .form-group { margin-bottom: 1.4rem; }
+
+        label {
+            display: block;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.55rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.85rem 1rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            color: var(--text-white);
+            font-family: var(--font-body);
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: rgba(239, 68, 68, 0.5);
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+
+        input::placeholder { color: var(--text-muted); }
+
+        .login-button {
+            width: 100%;
+            padding: 0.9rem;
+            background: linear-gradient(135deg, var(--red), var(--red-dim));
+            border: none;
+            border-radius: 14px;
+            color: white;
+            font-family: var(--font-head);
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 1rem;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 22px rgba(239, 68, 68, 0.4);
+        }
+
+        .login-button:active { transform: translateY(0); }
+
+        .login-button:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error-message {
+            background: rgba(239, 68, 68, 0.08);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            padding: 0.85rem 1rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            display: none;
+            font-size: 0.88rem;
+        }
+
+        .error-message.show { display: block; }
+
+        .back-link {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .back-link a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.88rem;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-link a:hover { opacity: 0.75; text-decoration: underline; }
+
+        .security-note {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(14, 165, 233, 0.06);
+            border-left: 3px solid rgba(56, 189, 248, 0.4);
+            border-radius: 8px;
+            color: #64748b;
+            font-size: 0.83rem;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="admin-badge">🔐 Admin Access</div>
+            <h1>Master Control</h1>
+            <p>Authorized personnel only</p>
+        </div>
+
+        <div id="error-message" class="error-message"></div>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label for="admin-email">Admin Email</label>
+                <input 
+                    id="admin-email" 
+                    type="email" 
+                    placeholder="Enter admin email"
+                    required
+                    autocomplete="email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="admin-password">Password</label>
+                <input 
+                    id="admin-password" 
+                    type="password" 
+                    placeholder="Enter password"
+                    required
+                    autocomplete="current-password"
+                >
+            </div>
+
+            <button type="submit" class="login-button">Login</button>
+        </form>
+
+        <div class="back-link">
+            <a href="index.html">← Back to Voting App</a>
+        </div>
+
+        <div class="security-note">
+            💡 <strong>Note:</strong> This login is restricted to authorized admins only. Keep your credentials secure.
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
