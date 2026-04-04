@@ -1,399 +1,275 @@
-const USERNAME_KEY = 'voteUsername';
-const DEADLINE_KEY = 'voteDeadline';
-const participants = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
-const participantAvatars = {
-    Eliman: 'image/eliman.jpg',
-    Isreal: 'image/isreal.jpg',
-    Marwan: 'image/marwan.webp',
-    Suraj: 'image/suraj.jpg'
+
+const ADMIN_CREDENTIALS = {
+    email: '30cent0@proton.me',
+    password: 'HEISENBERG67l+'
 };
-let selectedCandidate = null;
-let chartInstance = null;
 
-function loadUsername() {
-    return localStorage.getItem(USERNAME_KEY) || '';
+const ADMIN_SESSION_KEY = 'adminSession';
+const ADMIN_TOKEN = 'adminToken_v1';
+const USER_ACTIVITY_KEY = 'userActivity';
+const PARTICIPANTS = ['Eliman', 'Isreal', 'Marwan', 'Suraj'];
+
+
+function isAdminLoggedIn() {
+    return localStorage.getItem(ADMIN_SESSION_KEY) === ADMIN_TOKEN;
 }
 
-function saveUsername(username) {
-    localStorage.setItem(USERNAME_KEY, username);
+function loginAdmin(email, password) {
+    if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
+        localStorage.setItem(ADMIN_SESSION_KEY, ADMIN_TOKEN);
+        return true;
+    }
+    return false;
 }
 
-function clearUsername() {
-    localStorage.removeItem(USERNAME_KEY);
+function logoutAdmin() {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+    window.location.href = 'admin-login.html';
 }
 
-function loadVotes() {
+function trackUserActivity(username, action, candidate = null) {
+    let activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
+    activities.push({
+        username,
+        action,
+        candidate,
+        timestamp: new Date().toISOString(),
+        time: new Date().toLocaleTimeString()
+    });
+    localStorage.setItem(USER_ACTIVITY_KEY, JSON.stringify(activities));
+}
+
+
+
+if (document.getElementById('login-form')) {
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const email = document.getElementById('admin-email').value.trim().toLowerCase();
+        const password = document.getElementById('admin-password').value.trim();
+        const errorMessage = document.getElementById('error-message');
+
+        if (loginAdmin(email, password)) {
+            errorMessage.classList.remove('show');
+            window.location.href = 'admin-dashboard.html';
+        } else {
+            errorMessage.textContent = '❌ Invalid email or password';
+            errorMessage.classList.add('show');
+            document.getElementById('admin-password').value = '';
+            setTimeout(() => errorMessage.classList.remove('show'), 5000);
+        }
+    });
+}
+
+
+
+if (document.getElementById('clear-votes-btn')) {
+  
+    if (!isAdminLoggedIn()) {
+        window.location.href = 'admin-login.html';
+    }
+
+    document.getElementById('logout-btn').addEventListener('click', logoutAdmin);
+
+    const modal = document.getElementById('clear-modal');
+    const clearVotesBtn = document.getElementById('clear-votes-btn');
+    const modalCancel = document.getElementById('modal-cancel');
+    const modalConfirm = document.getElementById('modal-confirm');
+
+    clearVotesBtn.addEventListener('click', () => {
+        modal.classList.add('active');
+    });
+
+    modalCancel.addEventListener('click', () => {
+        modal.classList.remove('active');
+    });
+
+  
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+
+    modalConfirm.addEventListener('click', () => {
+        clearAllVotes();
+        modal.classList.remove('active');
+
+        const notification = document.getElementById('success-notification');
+        notification.classList.add('show');
+        setTimeout(() => notification.classList.remove('show'), 3000);
+    });
+
+  
+    loadDashboardData();
+
+
+    setInterval(loadDashboardData, 2000);
+}
+
+
+
+function loadAllUsers() {
+    const activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
+    const usernames = [];
+    const seenUsers = new Set();
+
+   
+    activities.forEach(activity => {
+        if (!seenUsers.has(activity.username)) {
+            seenUsers.add(activity.username);
+            usernames.push(activity.username);
+        }
+    });
+
+    return Array.from(seenUsers);
+}
+
+function getUserVoteInfo(username) {
+    const voteCastKey = `voteCast_${username}`;
+    const vote = localStorage.getItem(voteCastKey) || null;
+    return vote;
+}
+
+function getAllVotes() {
     const votes = {};
-    participants.forEach(name => {
+    PARTICIPANTS.forEach(name => {
         votes[name] = parseInt(localStorage.getItem(name) || 0, 10);
     });
     return votes;
-}
-
-function getUserVote(username) {
-    return localStorage.getItem(`voteCast_${username}`) || '';
-}
-
-function setUserVote(username, candidate) {
-    localStorage.setItem(`voteCast_${username}`, candidate);
-}
-
-function clearUserVote(username) {
-    localStorage.removeItem(`voteCast_${username}`);
-}
-
-function hasUserVoted(username) {
-    return Boolean(getUserVote(username));
-}
-
-function saveVotes(votes) {
-    for (const [name, count] of Object.entries(votes)) {
-        localStorage.setItem(name, count);
-    }
 }
 
 function getTotalVotes(votes) {
     return Object.values(votes).reduce((sum, count) => sum + count, 0);
 }
 
-function getTopChoice(votes) {
-    const sorted = Object.entries(votes).sort((a, b) => b[1] - a[1]);
-    return sorted[0] || ['None', 0];
-}
-
-function getDeadline() {
-    let stored = localStorage.getItem(DEADLINE_KEY);
-    if (!stored) {
-        const deadline = Date.now() + 30 * 24 * 60 * 60 * 1000;
-        localStorage.setItem(DEADLINE_KEY, `${deadline}`);
-        return deadline;
-    }
-    return Number(stored);
-}
-
-function formatRemaining(milliseconds) {
-    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days}d ${hours}h ${minutes}m ${seconds}s`;
-}
-
-function updateCountdown() {
-    const timer = document.getElementById('countdown-timer');
-    const submitButton = document.getElementById('submit-vote');
-    const remaining = getDeadline() - Date.now();
-    const username = loadUsername();
-    const disabledForUser = !username || hasUserVoted(username);
-
-    if (remaining <= 0) {
-        timer.textContent = 'Voting closed';
-        submitButton.disabled = true;
-        submitButton.classList.add('disabled');
-        return;
-    }
-
-    timer.textContent = formatRemaining(remaining);
-    if (disabledForUser) {
-        submitButton.disabled = true;
-        submitButton.classList.add('disabled');
-    } else {
-        submitButton.disabled = false;
-        submitButton.classList.remove('disabled');
-    }
-}
-
-function updateUserUI() {
-    const username = loadUsername();
-    const userStatus = document.getElementById('user-status');
-    const form = document.getElementById('registration-form');
-    const logoutButton = document.getElementById('logout-button');
-    const voteStatus = document.getElementById('vote-status');
-    const submitButton = document.getElementById('submit-vote');
-
-    if (username) {
-        const votedFor = getUserVote(username);
-        userStatus.textContent = `Voting as ${username}`;
-        form.classList.add('hidden');
-        logoutButton.classList.remove('hidden');
-
-        if (votedFor) {
-            voteStatus.textContent = `You already voted for ${votedFor}.`;
-            submitButton.disabled = true;
-            submitButton.classList.add('disabled');
-        } else {
-            voteStatus.textContent = selectedCandidate ? `Ready to vote as ${username}.` : `Select a candidate to vote as ${username}.`;
-            submitButton.disabled = false;
-            submitButton.classList.remove('disabled');
+function clearAllVotes() {
+    PARTICIPANTS.forEach(name => {
+        localStorage.removeItem(name);
+    });
+ 
+    const activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
+    const usernames = [];
+    const seenUsers = new Set();
+    
+    activities.forEach(activity => {
+        if (!seenUsers.has(activity.username)) {
+            seenUsers.add(activity.username);
+            usernames.push(activity.username);
         }
+    });
+
+    usernames.forEach(username => {
+        localStorage.removeItem(`voteCast_${username}`);
+    });
+
+ 
+    trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
+
+    loadDashboardData();
+}
+
+function loadDashboardData() {
+    const votes = getAllVotes();
+    const totalVotes = getTotalVotes(votes);
+    const users = loadAllUsers();
+    
+  
+    document.getElementById('total-votes-stat').textContent = totalVotes;
+    document.getElementById('active-users-stat').textContent = users.length;
+    
+    const votedUsers = users.filter(user => getUserVoteInfo(user) !== null).length;
+    document.getElementById('voted-users-stat').textContent = votedUsers;
+
+    const voteTallyDiv = document.getElementById('vote-tally');
+    if (totalVotes === 0) {
+        voteTallyDiv.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <p>No votes yet</p>
+            </div>
+        `;
     } else {
-        userStatus.textContent = 'Not registered yet';
-        form.classList.remove('hidden');
-        logoutButton.classList.add('hidden');
-        voteStatus.textContent = 'Register to start voting.';
-        submitButton.disabled = true;
-        submitButton.classList.add('disabled');
-    }
-}
-
-function handleRegister(event) {
-    event.preventDefault();
-    const input = document.getElementById('username-input');
-    const name = input.value.trim();
-    if (!name) {
-        alert('Choose a username to continue.');
-        return;
-    }
-    saveUsername(name);
-    input.value = '';
-    updateUserUI();
-    if (typeof recordUserActivity === 'function') {
-        recordUserActivity(name, 'REGISTERED');
-    }
-    alert(`Registered as ${name}.`);
-}
-
-function handleLogout() {
-    clearUsername();
-    selectedCandidate = null;
-    updateSelection();
-    updateUserUI();
-}
-
-function renderParticipants() {
-    const votes = loadVotes();
-    renderImageGallery();
-    renderProbabilityGraph(votes);
-
-    const total = getTotalVotes(votes);
-    const list = document.getElementById('participants');
-    list.innerHTML = '';
-
-    participants.forEach(name => {
-        const count = votes[name];
-        const share = total === 0 ? 0 : Math.round((count / total) * 100);
-        const card = document.createElement('article');
-        card.className = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
-        card.dataset.name = name;
-        card.style.cursor = 'pointer';
-        card.innerHTML = `
-            <div class="card-top">
-                <div>
-                    <h3>${name}</h3>
-                    <div class="vote-count">${count} vote${count === 1 ? '' : 's'}</div>
+        let voteTallyHTML = '';
+        PARTICIPANTS.forEach(name => {
+            const count = votes[name];
+            const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            voteTallyHTML += `
+                <div class="vote-bar">
+                    <div class="vote-label">${name}</div>
+                    <div class="vote-progress">
+                        <div class="vote-fill" style="width: ${percentage}%">${count > 0 ? percentage + '%' : ''}</div>
+                    </div>
+                    <div class="vote-count">${count}</div>
                 </div>
-                <div class="vote-count">${share}%</div>
-            </div>
-            <div class="share-bar"><div class="share-fill" style="width: ${share}%;"></div></div>
-            <div class="vote-actions">
-                <button class="vote-button">Vote for ${name}</button>
+            `;
+        });
+        voteTallyDiv.innerHTML = voteTallyHTML;
+    }
+
+    const userActivityDiv = document.getElementById('user-activity');
+    if (users.length === 0) {
+        userActivityDiv.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">👥</div>
+                <p>No registered users yet</p>
             </div>
         `;
-
-        card.querySelector('.vote-button').addEventListener('click', (e) => {
-            e.preventDefault();
-            voteForCandidate(name);
+    } else {
+        let userActivityHTML = '';
+        users.forEach(username => {
+            const vote = getUserVoteInfo(username);
+            const voteStatus = vote ? ` voted for <strong>${vote}</strong>` : ' (no vote yet)';
+            userActivityHTML += `
+                <div class="user-item">
+                    <div class="user-info">
+                        <div class="user-name">👤 ${username}</div>
+                        <div class="user-meta">Registered${voteStatus}</div>
+                    </div>
+                    ${vote ? `<div class="user-vote">${vote}</div>` : ''}
+                </div>
+            `;
         });
-
-        card.addEventListener('click', (e) => {
-            if (e.target.closest('.vote-button')) return;
-            selectedCandidate = name;
-            updateSelection();
-        });
-
-        list.appendChild(card);
-    });
-
-    updateSummary(votes);
+        userActivityDiv.innerHTML = userActivityHTML;
+    }
 }
 
-function voteForCandidate(candidateName) {
-    const username = loadUsername();
-    if (!username) {
-        alert('Register with a username before voting.');
-        return;
-    }
 
-    if (hasUserVoted(username)) {
-        alert('You have already voted once.');
-        updateUserUI();
-        return;
-    }
-
-    const weight = Number(document.getElementById('vote-weight').value);
-    const votes = loadVotes();
-    votes[candidateName] += weight;
-    saveVotes(votes);
-    setUserVote(username, candidateName);
-    selectedCandidate = candidateName;
-    renderParticipants();
-    document.getElementById('vote-status').textContent = `You voted for ${candidateName}!`;
-    document.getElementById('selected-name').textContent = candidateName;
-    updateUserUI();
-    if (typeof recordUserActivity === 'function') {
-        recordUserActivity(username, 'VOTED', candidateName);
-    }
-    alert(`Voted for ${candidateName} as ${username}!`);
+function recordUserActivity(username, action, candidate = null) {
+    trackUserActivity(username, action, candidate);
 }
 
-function renderImageGallery() {
-    const gallery = document.getElementById('image-gallery');
-    gallery.innerHTML = '';
 
-    participants.forEach(name => {
-        const card = document.createElement('div');
-        card.className = 'avatar-card';
-        card.innerHTML = `
-            <img src="${participantAvatars[name] || 'image/logo.jpg'}" alt="${name}">
-            <div class="avatar-name">${name}</div>
-        `;
-        gallery.appendChild(card);
-    });
-}
 
-function renderProbabilityGraph(votes) {
-    const total = getTotalVotes(votes);
-    const chartCanvas = document.getElementById('probability-graph');
-    if (!chartCanvas) return;
+(function() {
+    const SECRET_PHRASE = 'say my name';
+    let buffer = '';
 
-    const data = participants.map(name => {
-        const count = votes[name];
-        return total === 0 ? 0 : Math.round((count / total) * 100);
-    });
+    document.addEventListener('keydown', function(e) {
 
-    const chartData = {
-        labels: participants,
-        datasets: [{
-            label: 'Vote Share (%)',
-            data: data,
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56, 189, 248, 0.12)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: '#7dd3fc',
-            pointBorderColor: '#38bdf8',
-            pointRadius: 5,
-            pointHoverRadius: 7,
-            pointBorderWidth: 2
-        }]
-    };
+        const tag = document.activeElement.tagName.toLowerCase();
+        if (tag === 'input' || tag === 'textarea') return;
 
-    const chartOptions = {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                display: true,
-                labels: {
-                    color: '#cbd5e1',
-                    font: { size: 12, weight: '600' }
-                }
-            },
-            tooltip: {
-                backgroundColor: 'rgba(15, 23, 42, 0.92)',
-                titleColor: '#f8fafc',
-                bodyColor: '#cbd5e1',
-                borderColor: 'rgba(148, 163, 184, 0.18)',
-                borderWidth: 1,
-                padding: 10,
-                displayColors: false,
-                callbacks: {
-                    label: function(context) {
-                        return `${context.parsed.y}%`;
-                    }
-                }
+        buffer += e.key.toLowerCase();
+
+        if (buffer.length > SECRET_PHRASE.length) {
+            buffer = buffer.slice(-SECRET_PHRASE.length);
+        }
+
+  
+        if (buffer === SECRET_PHRASE) {
+            buffer = '';
+
+            const currentPage = window.location.pathname;
+            if (currentPage.includes('admin-login') || currentPage.includes('admin-dashboard')) {
+                return;
             }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                max: 100,
-                ticks: {
-                    color: '#94a3b8',
-                    callback: function(value) {
-                        return value + '%';
-                    }
-                },
-                grid: {
-                    color: 'rgba(148, 163, 184, 0.12)'
-                }
-            },
-            x: {
-                ticks: {
-                    color: '#94a3b8'
-                },
-                grid: {
-                    color: 'rgba(148, 163, 184, 0.08)'
-                }
+
+            if (isAdminLoggedIn()) {
+                window.location.href = 'admin-dashboard.html';
+            } else {
+                window.location.href = 'admin-login.html';
             }
         }
-    };
-
-    if (chartInstance) {
-        chartInstance.data = chartData;
-        chartInstance.options = chartOptions;
-        chartInstance.update('active');
-    } else {
-        const ctx = chartCanvas.getContext('2d');
-        chartInstance = new Chart(ctx, {
-            type: 'line',
-            data: chartData,
-            options: chartOptions
-        });
-    }
-}
-
-function updateSummary(votes) {
-    const total = getTotalVotes(votes);
-    const [topName, topCount] = getTopChoice(votes);
-    const topShare = total === 0 ? 0 : Math.round((topCount / total) * 100);
-
-    document.getElementById('total-votes').textContent = total;
-    document.getElementById('top-choice').textContent = topName;
-    document.getElementById('top-share').textContent = `${topShare}%`;
-}
-
-function updateSelection() {
-    document.getElementById('selected-name').textContent = selectedCandidate || 'None';
-    renderParticipants();
-    updateUserUI();
-}
-
-function submitVote() {
-    const username = loadUsername();
-    if (!username) {
-        alert('Register with a username before voting.');
-        return;
-    }
-
-    if (!selectedCandidate) {
-        alert('Please select a candidate before voting.');
-        return;
-    }
-
-    voteForCandidate(selectedCandidate);
-}
-
-function viewResults() {
-    window.location.href = 'results.html';
-}
-
-function syncWeightDisplay() {
-    document.getElementById('weight-display').textContent = document.getElementById('vote-weight').value;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('submit-vote').addEventListener('click', submitVote);
-    document.getElementById('view-results').addEventListener('click', viewResults);
-    document.getElementById('registration-form').addEventListener('submit', handleRegister);
-    document.getElementById('logout-button').addEventListener('click', handleLogout);
-    document.getElementById('vote-weight').addEventListener('input', syncWeightDisplay);
-
-    syncWeightDisplay();
-    updateUserUI();
-    renderParticipants();
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-});
+    });
+})();

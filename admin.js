@@ -69,24 +69,16 @@ if (document.getElementById('clear-votes-btn')) {
     const modalCancel = document.getElementById('modal-cancel');
     const modalConfirm = document.getElementById('modal-confirm');
 
-    clearVotesBtn.addEventListener('click', () => {
-        modal.classList.add('active');
-    });
-
-    modalCancel.addEventListener('click', () => {
-        modal.classList.remove('active');
-    });
+    clearVotesBtn.addEventListener('click', () => modal.classList.add('active'));
+    modalCancel.addEventListener('click', () => modal.classList.remove('active'));
 
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
-        }
+        if (e.target === modal) modal.classList.remove('active');
     });
 
     modalConfirm.addEventListener('click', () => {
         clearAllVotes();
         modal.classList.remove('active');
-
         const notification = document.getElementById('success-notification');
         notification.classList.add('show');
         setTimeout(() => notification.classList.remove('show'), 3000);
@@ -121,12 +113,10 @@ function getTotalVotes(votes) {
 
 function clearAllVotes() {
     PARTICIPANTS.forEach(name => localStorage.removeItem(name));
-
     const activities = JSON.parse(localStorage.getItem(USER_ACTIVITY_KEY) || '[]');
     const seenUsers = new Set();
     activities.forEach(activity => seenUsers.add(activity.username));
     seenUsers.forEach(username => localStorage.removeItem(`voteCast_${username}`));
-
     trackUserActivity('ADMIN', 'CLEARED_ALL_VOTES');
     loadDashboardData();
 }
@@ -199,33 +189,15 @@ function recordUserActivity(username, action, candidate = null) {
     trackUserActivity(username, action, candidate);
 }
 
-(function() {
-    const SECRET_PHRASE = 'say my name';
-    let buffer = '';
-
-    document.addEventListener('keydown', function(e) {
-        const tag = document.activeElement.tagName.toLowerCase();
-        if (tag === 'input' || tag === 'textarea') return;
-
-        if (e.key === ' ') e.preventDefault();
-        const char = e.key === ' ' ? ' ' : (e.key.length === 1 ? e.key.toLowerCase() : '');
-        if (!char) return;
-
-        buffer += char;
-        if (buffer.length > SECRET_PHRASE.length) {
-            buffer = buffer.slice(-SECRET_PHRASE.length);
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.altKey && e.key === 'l') {
+        e.preventDefault();
+        const currentPage = window.location.pathname;
+        if (currentPage.includes('admin-login') || currentPage.includes('admin-dashboard')) return;
+        if (isAdminLoggedIn()) {
+            window.location.href = 'admin-dashboard.html';
+        } else {
+            window.location.href = 'admin-login.html';
         }
-
-        if (buffer === SECRET_PHRASE) {
-            buffer = '';
-            const currentPage = window.location.pathname;
-            if (currentPage.includes('admin-login') || currentPage.includes('admin-dashboard')) return;
-
-            if (isAdminLoggedIn()) {
-                window.location.href = 'admin-dashboard.html';
-            } else {
-                window.location.href = 'admin-login.html';
-            }
-        }
-    });
-})();
+    }
+});
