@@ -477,6 +477,14 @@ function handleLogout() {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Add click handlers for static candidate cards
+    document.querySelectorAll('.candidate-selectable').forEach(card => {
+        card.addEventListener('click', () => {
+            selectedCandidate = card.getAttribute('data-candidate');
+            updateSelection();
+        });
+    });
+
     document.getElementById('submit-vote').addEventListener('click', submitVote);
     document.getElementById('view-results').addEventListener('click', viewResults);
     document.getElementById('registration-form').addEventListener('submit', handleRegister);
