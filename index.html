@@ -53,32 +53,12 @@
     <main class="layout-grid">
         <section class="market-panel">
             <div class="panel-heading">
-                <h2>Who Gets Kicked First?</h2>
-                <p>See current vote shares and choose who to push to the top of the kick list.</p>
+                <h2>Vote on Your Favorite</h2>
+                <p>Click on any candidate card to vote. Each vote updates live across all sessions.</p>
             </div>
-            <div class="panel-heading">
-                <h3>Candidates</h3>
-                <p>These are the people you can vote for right now.</p>
-            </div>
-            <div class="candidate-grid">
-                <div class="avatar-card candidate-selectable" data-candidate="Eliman">
-                    <img src="image/eliman.jpg" alt="Eliman">
-                    <div class="avatar-name">Eliman</div>
-                </div>
-                <div class="avatar-card candidate-selectable" data-candidate="Isreal">
-                    <img src="image/isreal.jpg" alt="Isreal">
-                    <div class="avatar-name">Isreal</div>
-                </div>
-                <div class="avatar-card candidate-selectable" data-candidate="Marwan">
-                    <img src="image/marwan.webp" alt="Marwan">
-                    <div class="avatar-name">Marwan</div>
-                </div>
-                <div class="avatar-card candidate-selectable" data-candidate="Suraj">
-                    <img src="image/suraj.jpg" alt="Suraj">
-                    <div class="avatar-name">Suraj</div>
-                </div>
-            </div>
-            <div class="image-gallery" id="image-gallery"></div>
+            
+            <div id="candidates-voting-area" class="candidates-voting-area"></div>
+
             <div class="probability-panel">
                 <div class="panel-heading">
                     <h3>Vote Distribution Chart</h3>
@@ -88,7 +68,6 @@
                     <canvas id="probability-graph"></canvas>
                 </div>
             </div>
-            <div id="participants" class="participant-list"></div>
         </section>
 
         <aside id="vote-area" class="activity-panel" style="display: block;">

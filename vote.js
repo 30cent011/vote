@@ -212,32 +212,68 @@ async function syncVotes() {
     renderParticipants();
 }
 
+// SSE listener for real-time vote updates
+let sseSource = null;
+function initSSE() {
+    if (sseSource) sseSource.close();
+    sseSource = new EventSource('/api/stream');
+
+    sseSource.addEventListener('init', (e) => {
+        const data = JSON.parse(e.data);
+        serverVotes = data.votes;
+        saveVotes(data.votes);
+        isSyncOnline = true;
+        updateSyncStatus();
+        renderParticipants();
+    });
+
+    sseSource.addEventListener('votes-updated', (e) => {
+        const data = JSON.parse(e.data);
+        serverVotes = data.votes;
+        saveVotes(data.votes);
+        isSyncOnline = true;
+        updateSyncStatus();
+        renderParticipants();
+    });
+
+    sseSource.onerror = () => {
+        isSyncOnline = false;
+        updateSyncStatus();
+        sseSource.close();
+        // Reconnect after 3 seconds
+        setTimeout(initSSE, 3000);
+    };
+}
+
 function renderParticipants() {
     const votes = getCurrentVotes();
-    renderImageGallery();
     renderProbabilityGraph(votes);
 
     const total = getTotalVotes(votes);
-    const list = document.getElementById('participants');
-    list.innerHTML = '';
+    const area = document.getElementById('candidates-voting-area');
+    if (!area) return;
+    area.innerHTML = '';
 
     participants.forEach(name => {
         const count = votes[name];
         const share = total === 0 ? 0 : Math.round((count / total) * 100);
-        const card = document.createElement('article');
-        card.className = `participant-card${selectedCandidate === name ? ' selected' : ''}`;
+        const card = document.createElement('div');
+        card.className = `candidate-voting-card${selectedCandidate === name ? ' selected' : ''}`;
         card.dataset.name = name;
         card.style.cursor = 'pointer';
         card.innerHTML = `
-            <div class="card-top">
-                <div>
-                    <h3>${name}</h3>
-                    <div class="vote-count">${count} vote${count === 1 ? '' : 's'}</div>
-                </div>
-                <div class="vote-count">${share}%</div>
+            <div class="card-image">
+                <img src="${participantAvatars[name]}" alt="${name}">
             </div>
-            <div class="share-bar"><div class="share-fill" style="width: ${share}%;"></div></div>
-            <div class="vote-actions">
+            <div class="card-content">
+                <h3>${name}</h3>
+                <div class="vote-stats">
+                    <div class="vote-count">${count} vote${count === 1 ? '' : 's'}</div>
+                    <div class="vote-percentage">${share}%</div>
+                </div>
+                <div class="share-bar">
+                    <div class="share-fill" style="width: ${share}%;"></div>
+                </div>
                 <button class="vote-button">Vote for ${name}</button>
             </div>
         `;
@@ -253,7 +289,7 @@ function renderParticipants() {
             updateSelection();
         });
 
-        list.appendChild(card);
+        area.appendChild(card);
     });
 
     updateSummary(votes);
@@ -496,6 +532,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderParticipants();
     updateCountdown();
     await syncVotes();
+    initSSE(); // Initialize real-time SSE updates
     setInterval(updateCountdown, 1000);
-    setInterval(syncVotes, 5000);
 });
