@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Market - Fumble Market</title>
+    <link rel="stylesheet" href="vote.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topnav">
+            <div class="nav-brand">
+                <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
+                <span>FUMBLE</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Markets</a>
+                <a href="#">Leaderboard</a>
+                <a href="#">Portfolio</a>
+                <a href="#">Activity</a>
+            </div>
+            <button class="nav-action">Sign in</button>
+        </nav>
+
+        <header class="hero hero-large">
+            <div class="hero-copy hero-copy-large">
+                <span class="tag">Binary</span>
+                <h1>Pick between Unit 6 and Unit 7.</h1>
+                <p>Choose the side you think will fumble first in this head-to-head market.</p>
+                <div class="hero-stats hero-stats-wide">
+                    <div class="stat-card stat-card-large">
+                        <span>Markets</span>
+                        <strong>1</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Leading side</span>
+                        <strong>Unit 6</strong>
+                    </div>
+                    <div class="stat-card stat-card-large state-live">
+                        <span>Status</span>
+                        <strong>LIVE</strong>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-grid">
+            <section class="market-panel market-overview">
+                <div class="market-topbar">
+                    <div class="pill-group">
+                        <a class="pill" href="all.html">All</a>
+                        <a class="pill" href="academics.html">Academics</a>
+                        <a class="pill active" href="binary.html">Binary</a>
+                        <a class="pill" href="polls.html">Polls</a>
+                    </div>
+                    <div class="search-box">
+                        <input type="search" placeholder="Search markets..." aria-label="Search markets">
+                    </div>
+                </div>
+
+                <div class="market-grid">
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row small">
+                                <img src="image/unit6.svg" alt="Unit 6">
+                                <img src="image/unit7.svg" alt="Unit 7">
+                            </div>
+                            <span class="pill mini">Binary</span>
+                        </div>
+                        <h3>Which will fumble first: Unit 6 or Unit 7?</h3>
+                        <p>A head-to-head market on whether Unit 6 or Unit 7 breaks first.</p>
+                        <div class="market-breakdown">
+                            <div>Unit 6 <strong>59.7%</strong></div>
+                            <div>Unit 7 <strong>40.3%</strong></div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
