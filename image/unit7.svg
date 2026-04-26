@@ -1,0 +1,5 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" rx="28" fill="#0d1526"/>
+  <circle cx="120" cy="90" r="64" fill="#111d33" stroke="#38bdf8" stroke-width="4"/>
+  <text x="120" y="128" font-family="DM Sans, sans-serif" font-size="30" font-weight="800" fill="#38bdf8" text-anchor="middle">UNIT 7</text>
+</svg>

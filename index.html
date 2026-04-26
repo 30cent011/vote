@@ -3,102 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kick Vote - Market Style Voting</title>
+    <title>Fumble Market</title>
     <link rel="stylesheet" href="vote.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <header class="hero">
-        <div class="logo-area">
-            <img src="image/logo.jpg" alt="Kick Vote Logo" class="logo-image">
-        </div>
-        <div class="hero-copy">
-            <span class="tag">Prediction Market</span>
-            <h1>Who will get kicked first?</h1>
-            <p>Vote on who will get kicked first. Each vote changes the live market statistics and overall ranking.</p>
-        </div>
-        <div class="hero-stats">
-            <div class="stat-card">
-                <span>Total Votes</span>
-                <strong id="total-votes">0</strong>
+    <div class="page-shell">
+        <nav class="topnav">
+            <div class="nav-brand">
+                <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
+                <span>FUMBLE</span>
             </div>
-            <div class="stat-card">
-                <span>Top Contender</span>
-                <strong id="top-choice">None</strong>
+            <div class="nav-links">
+                <a href="#">Markets</a>
+                <a href="#">Leaderboard</a>
+                <a href="#">Portfolio</a>
+                <a href="#">Activity</a>
             </div>
-            <div class="stat-card">
-                <span>Leading Share</span>
-                <strong id="top-share">0%</strong>
-            </div>
-        </div>
-        <div class="hero-account">
-            <div class="account-card">
-                <div class="account-header">Account</div>
-                <div class="account-body">
-                    <div id="user-status" class="account-status">Not registered yet</div>
-                    <form id="registration-form" class="account-form">
-                        <input id="username-input" type="text" placeholder="Choose a username" autocomplete="username">
-                        <button type="submit" class="primary">Register</button>
-                    </form>
-                    <button id="logout-button" class="tertiary hidden">Logout</button>
+            <button class="nav-action">Sign in</button>
+        </nav>
+
+        <header class="hero hero-large">
+            <div class="hero-copy hero-copy-large">
+                <span class="tag">Live • Real-time prediction markets</span>
+                <h1>Bet on who&apos;s about to <span class="highlight">fumble</span>.</h1>
+                <p>Sign in, get 1000 virtual coins, and trade outcomes in real time across the squad.</p>
+                <div class="hero-stats hero-stats-wide">
+                    <div class="stat-card stat-card-large">
+                        <span>Markets</span>
+                        <strong>5</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Total Volume</span>
+                        <strong>160 coins</strong>
+                    </div>
+                    <div class="stat-card stat-card-large state-live">
+                        <span>Status</span>
+                        <strong>LIVE</strong>
+                    </div>
                 </div>
             </div>
-            <div class="countdown-card">
-                <span>Voting ends in</span>
-                <strong id="countdown-timer">30d 0h 0m 0s</strong>
-            </div>
-        </div>
-    </header>
+        </header>
 
-    <main class="layout-grid">
-        <section class="market-panel">
-            <div class="panel-heading">
-                <h2>Vote on Your Favorite</h2>
-                <p>Click on any candidate card to vote. Each vote updates live across all sessions.</p>
-            </div>
-            
-            <div id="candidates-voting-area" class="candidates-voting-area"></div>
-
-            <div class="probability-panel">
-                <div class="panel-heading">
-                    <h3>Vote Distribution Chart</h3>
-                    <p>Real-time visualization of votes across all candidates.</p>
+        <main class="content-grid">
+            <section class="market-panel market-overview">
+                <div class="market-topbar">
+                    <div class="pill-group">
+                        <button class="pill active">All</button>
+                        <button class="pill">Academics</button>
+                        <button class="pill">Binary</button>
+                        <button class="pill">Polls</button>
+                    </div>
+                    <div class="search-box">
+                        <input type="search" placeholder="Search markets..." aria-label="Search markets">
+                    </div>
                 </div>
-                <div class="chart-container">
-                    <canvas id="probability-graph"></canvas>
+
+                <div class="market-grid">
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row">
+                                <img src="image/eliman.jpg" alt="Eliman">
+                                <img src="image/isreal.jpg" alt="Isreal">
+                                <img src="image/marwan.webp" alt="Marwan">
+                                <img src="image/suraj.jpg" alt="Suraj">
+                            </div>
+                            <span class="pill mini">Academics</span>
+                        </div>
+                        <h3>Who will fumble Unit 6?</h3>
+                        <p>Predict the first drop from Unit 6 and watch the real-time odds shift.</p>
+                        <div class="market-breakdown">
+                            <div>Suraj <strong>50.3%</strong></div>
+                            <div>Isreal <strong>20.8%</strong></div>
+                            <div>Eliman <strong>16.6%</strong></div>
+                            <div>Marwan <strong>12.3%</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row">
+                                <img src="image/marwan.webp" alt="Marwan">
+                                <img src="image/eliman.jpg" alt="Eliman">
+                                <img src="image/suraj.jpg" alt="Suraj">
+                                <img src="image/isreal.jpg" alt="Isreal">
+                            </div>
+                            <span class="pill mini">Academics</span>
+                        </div>
+                        <h3>Who will fumble Unit 7?</h3>
+                        <p>Choose the most likely Unit 7 player to slip up first in the next play.</p>
+                        <div class="market-breakdown">
+                            <div>Marwan <strong>31.0%</strong></div>
+                            <div>Eliman <strong>27.9%</strong></div>
+                            <div>Isreal <strong>21.5%</strong></div>
+                            <div>Suraj <strong>19.5%</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row small">
+                                <img src="image/unit6.svg" alt="Unit 6">
+                                <img src="image/unit7.svg" alt="Unit 7">
+                            </div>
+                            <span class="pill mini">Binary</span>
+                        </div>
+                        <h3>Which will fumble first: Unit 6 or Unit 7?</h3>
+                        <p>A head-to-head market on whether Unit 6 or Unit 7 breaks first.</p>
+                        <div class="market-breakdown">
+                            <div>Unit 6 <strong>59.7%</strong></div>
+                            <div>Unit 7 <strong>40.3%</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row">
+                                <img src="image/eliman.jpg" alt="Eliman">
+                                <img src="image/isreal.jpg" alt="Isreal">
+                                <img src="image/marwan.webp" alt="Marwan">
+                                <img src="image/suraj.jpg" alt="Suraj">
+                            </div>
+                            <span class="pill mini">Polls</span>
+                        </div>
+                        <h3>Who is the dumbest?</h3>
+                        <p>Rank the weakest performer from the group and see which choice is trending.</p>
+                        <div class="market-breakdown">
+                            <div>Isreal <strong>33.1%</strong></div>
+                            <div>Suraj <strong>26.6%</strong></div>
+                            <div>Eliman <strong>20.4%</strong></div>
+                            <div>Marwan <strong>19.9%</strong></div>
+                        </div>
+                    </article>
+
+                    <article class="market-card">
+                        <div class="card-head">
+                            <div class="card-avatar-row">
+                                <img src="image/big-daniel.svg" alt="Big Daniel">
+                                <img src="image/unit6.svg" alt="Unit 6">
+                                <img src="image/unit7.svg" alt="Unit 7">
+                                <img src="image/marwan.webp" alt="Marwan">
+                            </div>
+                            <span class="pill mini">Polls</span>
+                        </div>
+                        <h3>Who will get touched by Big Daniel first?</h3>
+                        <p>Predict the first player to feel Big Daniel’s reach in this live event.</p>
+                        <div class="market-breakdown">
+                            <div>Marwan <strong>28.6%</strong></div>
+                            <div>Eliman <strong>28.5%</strong></div>
+                            <div>Suraj <strong>21.6%</strong></div>
+                            <div>Isreal <strong>21.3%</strong></div>
+                        </div>
+                    </article>
                 </div>
-            </div>
-        </section>
-
-        <aside id="vote-area" class="activity-panel" style="display: block;">
-            <div class="panel-label">
-                <span class="tag">Voting Area</span>
-            </div>
-            <div class="panel-heading">
-                <h2>Pick Who Gets Kicked First</h2>
-                <p>Choose a candidate, set your vote weight, and cast your vote.</p>
-            </div>
-            <div class="trade-card">
-                <label for="selected-name">Selected Candidate</label>
-                <div id="selected-name" class="selected-name">None</div>
-            </div>
-            <div class="trade-card">
-                <label for="vote-weight">Vote Weight</label>
-                <input type="range" id="vote-weight" min="1" max="5" value="1">
-                <div class="weight-value"><span id="weight-display">1</span> vote(s)</div>
-            </div>
-            <div class="trade-card">
-                <div id="vote-status" class="vote-note">Register to start voting.</div>
-                <div id="sync-status" class="vote-note">Sync status not available yet.</div>
-            </div>
-            <div class="trade-card action-group">
-                <button id="submit-vote" class="primary">Submit Vote</button>
-                <button id="view-results" class="secondary">View Results</button>
-            </div>
-        </aside>
-    </main>
-
-    <script src="vote.js"></script>
-    <script src="admin.js"></script>
+            </section>
+        </main>
+    </div>
 </body>
 </html>

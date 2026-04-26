@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Market</title>
+    <link rel="stylesheet" href="vote.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topnav">
+            <div class="nav-brand">
+                <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
+                <span>FUMBLE</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Markets</a>
+                <a href="#">Activity</a>
+                <a href="#">Portfolio</a>
+            </div>
+            <button class="nav-action">Sign in</button>
+        </nav>
+
+        <header class="hero hero-large">
+            <div class="hero-copy hero-copy-large">
+                <span id="market-tag" class="tag">Market</span>
+                <h1 id="market-title">Market title</h1>
+                <p id="market-description">Market description goes here.</p>
+                <div class="hero-stats hero-stats-wide">
+                    <div class="stat-card stat-card-large">
+                        <span>Total Votes</span>
+                        <strong id="total-votes">0</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Top Contender</span>
+                        <strong id="top-choice">None</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Leading Share</span>
+                        <strong id="top-share">0%</strong>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-grid">
+            <section class="market-panel market-detail">
+                <div class="market-topbar" style="margin-bottom: 1.5rem;">
+                    <div class="pill-group">
+                        <span class="pill active">Live market</span>
+                    </div>
+                    <button class="nav-action" onclick="window.location.href='results.html?market=' + encodeURIComponent(new URLSearchParams(window.location.search).get('market') || 'unit6')">View results</button>
+                </div>
+
+                <div class="market-body-grid">
+                    <div>
+                        <div class="panel-heading">
+                            <h3>Options</h3>
+                            <p>Select a candidate or option to back in this market.</p>
+                        </div>
+                        <div id="candidate-grid" class="candidate-grid"></div>
+                        <div class="image-gallery" id="image-gallery"></div>
+                    </div>
+
+                    <aside class="activity-panel">
+                        <div class="panel-label"><span class="tag">Voting</span></div>
+                        <div class="panel-heading">
+                            <h2>Submit a vote</h2>
+                            <p>Pick your favorite option, choose weight, and vote.</p>
+                        </div>
+                        <div class="trade-card">
+                            <label for="selected-name">Selected Candidate</label>
+                            <div id="selected-name" class="selected-name">None</div>
+                        </div>
+                        <div class="trade-card">
+                            <label for="vote-weight">Vote Weight</label>
+                            <input type="range" id="vote-weight" min="1" max="5" value="1">
+                            <div class="weight-value"><span id="weight-display">1</span> vote(s)</div>
+                        </div>
+                        <div class="trade-card">
+                            <div id="vote-status" class="vote-note">Register to start voting.</div>
+                            <div id="sync-status" class="vote-note">Sync status not available yet.</div>
+                        </div>
+                        <div class="trade-card action-group">
+                            <button id="submit-vote" class="primary">Submit Vote</button>
+                            <button id="view-results" class="secondary" onclick="window.location.href='results.html?market=' + encodeURIComponent(new URLSearchParams(window.location.search).get('market') || 'unit6')">View Results</button>
+                        </div>
+                    </aside>
+                </div>
+
+                <div class="probability-panel">
+                    <div class="panel-heading">
+                        <h3>Vote Distribution</h3>
+                        <p>Live probability chart with current market shares.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="probability-graph"></canvas>
+                    </div>
+                </div>
+                <div id="participants" class="participant-list"></div>
+            </section>
+        </main>
+    </div>
+
+    <script src="vote.js"></script>
+</body>
+</html>

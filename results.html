@@ -3,61 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vote Market Results</title>
+    <title>Market Results</title>
     <link rel="stylesheet" href="vote.css">
 </head>
 <body>
-    <header class="hero">
-        <div class="hero-copy">
-            <span class="tag">Market Summary</span>
-            <h1>Results Dashboard</h1>
-            <p>Ranked results with vote share, updated live from your voting market.</p>
-            <p id="results-user-message" class="results-user">Not registered</p>
-        </div>
-        <div class="hero-stats">
-            <div class="stat-card">
-                <span>Total Votes</span>
-                <strong id="results-total">0</strong>
+    <div class="page-shell">
+        <nav class="topnav">
+            <div class="nav-brand">
+                <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
+                <span>FUMBLE</span>
             </div>
-            <div class="stat-card">
-                <span>Leading Candidate</span>
-                <strong id="results-leader">None</strong>
+            <div class="nav-links">
+                <a href="index.html">Markets</a>
+                <a href="#">Leaderboard</a>
+                <a href="#">Activity</a>
             </div>
-            <div class="stat-card">
-                <span>Winning Share</span>
-                <strong id="results-share">0%</strong>
-            </div>
-            <div class="stat-card">
-                <span>Logged In Users</span>
-                <strong id="logged-in-count">0</strong>
-            </div>
-            <div class="stat-card">
-                <span>Voted % of Logged In</span>
-                <strong id="voted-percentage">0%</strong>
-            </div>
-        </div>
-    </header>
+            <button class="nav-action" onclick="window.location.href='index.html'">Home</button>
+        </nav>
 
-    <main class="layout-grid">
-        <section class="market-panel">
-            <div class="panel-heading">
-                <h2>Final Rankings</h2>
-                <p>Review the vote leaderboard and discover who has the strongest support.</p>
+        <header class="hero hero-large">
+            <div class="hero-copy hero-copy-large">
+                <span class="tag">Market Summary</span>
+                <h1 id="results-title">Results Dashboard</h1>
+                <p id="results-description">Ranked results with vote share, updated live from your voting market.</p>
+                <p id="results-user-message" class="results-user">Not registered</p>
+                <div class="hero-stats hero-stats-wide">
+                    <div class="stat-card stat-card-large">
+                        <span>Total Votes</span>
+                        <strong id="results-total">0</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Leading Candidate</span>
+                        <strong id="results-leader">None</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Winning Share</span>
+                        <strong id="results-share">0%</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Logged In Users</span>
+                        <strong id="logged-in-count">0</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Voted % of Logged In</span>
+                        <strong id="voted-percentage">0%</strong>
+                    </div>
+                </div>
             </div>
-            <div id="results-list" class="participant-list"></div>
-        </section>
+        </header>
 
-        <aside class="activity-panel">
-            <div class="panel-heading">
-                <h2>Actions</h2>
-                <p>Return to voting or clear the current market data.</p>
-            </div>
-            <div class="trade-card action-group">
-                <button onclick="window.location.href='index.html'" class="secondary">Back to Voting</button>
-                <button id="reset-votes" class="tertiary">Reset Votes</button>
-            </div>
-        </aside>
-    </main>
+        <main class="content-grid">
+            <section class="market-panel market-detail">
+                <div class="panel-heading">
+                    <h2>Live Leaderboard</h2>
+                    <p>Review the market standings as votes update in real time.</p>
+                </div>
+                <div id="results-list" class="participant-list"></div>
+                <div class="trade-card action-group" style="margin-top: 1.5rem;">
+                    <button id="back-button" class="secondary">Back to Market</button>
+                    <button id="refresh-button" class="primary">Refresh Live Feed</button>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script src="results.js"></script>
 </body>

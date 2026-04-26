@@ -4,74 +4,177 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const DEFAULT_MARKET = 'unit6';
 
-// Middleware
+const markets = {
+    unit6: {
+        id: 'unit6',
+        title: 'Who will fumble Unit 6?',
+        description: 'Vote on the first fumble from Unit 6 in this live prediction market.',
+        participants: ['Unit 6', 'Unit 7', 'Big Daniel', 'Spectator']
+    },
+    unit7: {
+        id: 'unit7',
+        title: 'Who will fumble Unit 7?',
+        description: 'Choose which Unit 7 player will drop the ball first.',
+        participants: ['Unit 7', 'Unit 6', 'Big Daniel', 'Spectator']
+    },
+    'unit6-vs-7': {
+        id: 'unit6-vs-7',
+        title: 'Which will fumble first: Unit 6 or Unit 7?',
+        description: 'A direct market on whether Unit 6 or Unit 7 slips up first.',
+        participants: ['Unit 6', 'Unit 7']
+    },
+    dumbest: {
+        id: 'dumbest',
+        title: 'Who is the dumbest?',
+        description: 'Market-style ranking for the person with the weakest play.',
+        participants: ['Eliman', 'Isreal', 'Marwan', 'Suraj']
+    },
+    'big-daniel': {
+        id: 'big-daniel',
+        title: 'Who will get touched by Big Daniel first?',
+        description: 'Place a prediction on the first person to feel Big Daniel’s reach.',
+        participants: ['Big Daniel', 'Unit 6', 'Unit 7', 'Marwan']
+    }
+};
+
+const marketVotes = {};
+const usersData = {};
+const loggedInUsers = new Set();
+const streamClients = {};
+
+for (const marketId of Object.keys(markets)) {
+    marketVotes[marketId] = {};
+    streamClients[marketId] = new Set();
+    markets[marketId].participants.forEach(candidate => {
+        marketVotes[marketId][candidate] = 0;
+    });
+}
+
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname)));
 
-// In-memory storage (for testing)
-let votesData = {
-    'Eliman': 0,
-    'Isreal': 0,
-    'Marwan': 0,
-    'Suraj': 0
-};
-let usersData = {};
-let loggedInUsers = new Set();
-
-// Admin and SSE clients storage
-const adminSessions = new Map(); // token -> { email, timestamp }
-const sseClients = new Set(); // connected SSE clients
-const ADMIN_PASSWORD = 'admin123'; // Default admin password
-const ADMIN_EMAIL = 'admin@vote.com'; // Default admin email
-
-// Generate simple token
-function generateToken() {
-    return Math.random().toString(36).substr(2) + Date.now().toString(36);
+function getMarketIdParam(req) {
+    return req.params.marketId || DEFAULT_MARKET;
 }
 
-// Broadcast vote updates to all connected SSE clients
-function broadcastVoteUpdate() {
-    const message = `data: ${JSON.stringify({ votes: votesData, users: usersData })}\n\n`;
-    sseClients.forEach(client => {
-        try {
-            client.write(`event: votes-updated\n${message}`);
-        } catch (e) {
-            sseClients.delete(client);
-        }
-    });
+function getMarket(marketId) {
+    return markets[marketId] || markets[DEFAULT_MARKET];
 }
 
-// API endpoints
-app.get('/api/votes', (req, res) => {
-    res.json(votesData);
+function sendMarketUpdate(marketId) {
+    const clients = streamClients[marketId];
+    if (!clients || clients.size === 0) return;
+    const payload = JSON.stringify({ marketId, votes: marketVotes[marketId] });
+    for (const res of clients) {
+        res.write(`event: votes-updated\n`);
+        res.write(`data: ${payload}\n\n`);
+    }
+}
+
+app.get('/api/markets', (req, res) => {
+    res.json({ markets: Object.values(markets) });
 });
 
-app.post('/api/votes', (req, res) => {
+app.get('/api/market/:marketId/votes', (req, res) => {
+    const marketId = getMarketIdParam(req);
+    const market = getMarket(marketId);
+    res.json(marketVotes[market.id]);
+});
+
+app.get('/api/votes', (req, res) => {
+    res.json(marketVotes[DEFAULT_MARKET]);
+});
+
+function handleMarketVote(req, res) {
+    const marketId = getMarketIdParam(req);
+    const market = getMarket(marketId);
     const { candidate, username, weight = 1 } = req.body;
-    if (!username || !candidate || votesData[candidate] === undefined) {
-        return res.status(400).json({ error: 'Invalid candidate or username' });
+    const validCandidate = market.participants.includes(candidate);
+
+    if (!username || !candidate || !validCandidate) {
+        return res.status(400).json({ error: 'Invalid candidate, username, or market.' });
     }
 
     if (!usersData[username]) {
         usersData[username] = {};
     }
 
-    if (usersData[username].vote) {
-        return res.status(409).json({ error: 'User has already voted' });
+    if (usersData[username][market.id]) {
+        return res.status(409).json({ error: 'User has already voted in this market.' });
     }
 
     const voteWeight = Number(weight) || 1;
-    votesData[candidate] += voteWeight;
-    usersData[username].vote = candidate;
-    usersData[username].weight = voteWeight;
-    usersData[username].timestamp = new Date().toISOString();
+    marketVotes[market.id][candidate] += voteWeight;
+    usersData[username][market.id] = {
+        vote: candidate,
+        weight: voteWeight,
+        timestamp: new Date().toISOString()
+    };
 
-    // Broadcast update to all SSE clients
-    broadcastVoteUpdate();
+    sendMarketUpdate(market.id);
+    res.json({ success: true, votes: marketVotes[market.id], users: usersData });
+}
 
-    res.json({ success: true, votes: votesData, users: usersData });
+app.post('/api/market/:marketId/votes', handleMarketVote);
+app.post('/api/votes', (req, res) => {
+    req.params.marketId = DEFAULT_MARKET;
+    handleMarketVote(req, res);
+});
+
+function handleMarketStream(req, res) {
+    const marketId = getMarketIdParam(req);
+    const market = getMarket(marketId);
+
+    res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive'
+    });
+    res.flushHeaders();
+
+    const client = res;
+    streamClients[market.id].add(client);
+
+    client.write(`event: init\n`);
+    client.write(`data: ${JSON.stringify({ marketId: market.id, votes: marketVotes[market.id] })}\n\n`);
+
+    req.on('close', () => {
+        streamClients[market.id].delete(client);
+    });
+}
+
+app.get('/api/market/:marketId/stream', handleMarketStream);
+app.get('/api/stream', (req, res) => {
+    req.params.marketId = DEFAULT_MARKET;
+    handleMarketStream(req, res);
+});
+
+function handleMarketStats(req, res) {
+    const marketId = getMarketIdParam(req);
+    const market = getMarket(marketId);
+    const totalUsers = Object.keys(usersData).length;
+    const votedUsers = Object.values(usersData).filter(user => user[market.id]).length;
+    const loggedInCount = loggedInUsers.size;
+    const votePercentage = totalUsers > 0 ? Math.round((votedUsers / totalUsers) * 100) : 0;
+    const loginPercentage = loggedInCount > 0 ? Math.round((votedUsers / loggedInCount) * 100) : 0;
+
+    res.json({
+        totalUsers,
+        votedUsers,
+        loggedInCount,
+        votePercentage,
+        loginPercentage,
+        votes: marketVotes[market.id]
+    });
+}
+
+app.get('/api/market/:marketId/stats', handleMarketStats);
+app.get('/api/stats', (req, res) => {
+    req.params.marketId = DEFAULT_MARKET;
+    handleMarketStats(req, res);
 });
 
 app.get('/api/users', (req, res) => {
@@ -88,94 +191,23 @@ app.post('/api/login', (req, res) => {
     }
 });
 
-app.get('/api/stats', (req, res) => {
-    const totalUsers = Object.keys(usersData).length;
-    const votedUsers = Object.values(usersData).filter(u => u.vote).length;
-    const loggedInCount = loggedInUsers.size;
-    const votePercentage = totalUsers > 0 ? Math.round((votedUsers / totalUsers) * 100) : 0;
-    const loginPercentage = loggedInCount > 0 ? Math.round((votedUsers / loggedInCount) * 100) : 0;
-    res.json({
-        totalUsers,
-        votedUsers,
-        loggedInCount,
-        votePercentage,
-        loginPercentage,
-        votes: votesData
-    });
-});
-
 app.post('/api/reset', (req, res) => {
-    // Check admin token
-    const token = req.headers['x-admin-token'];
-    if (!token || !adminSessions.has(token)) {
-        return res.status(403).json({ error: 'Unauthorized' });
+    for (const marketId of Object.keys(markets)) {
+        markets[marketId].participants.forEach(candidate => {
+            marketVotes[marketId][candidate] = 0;
+        });
     }
-
-    votesData = {
-        'Eliman': 0,
-        'Isreal': 0,
-        'Marwan': 0,
-        'Suraj': 0
-    };
-    usersData = {};
+    for (const username of Object.keys(usersData)) {
+        usersData[username] = {};
+    }
     loggedInUsers.clear();
-
-    // Broadcast update to all SSE clients
-    broadcastVoteUpdate();
-
+    Object.values(streamClients).forEach(clientSet => clientSet.forEach(res => {
+        res.write(`event: votes-updated\n`);
+        res.write(`data: ${JSON.stringify({ marketId: DEFAULT_MARKET, votes: marketVotes[DEFAULT_MARKET] })}\n\n`);
+    }));
     res.json({ success: true });
 });
 
-// Admin endpoints
-app.post('/api/admin/login', (req, res) => {
-    const { email, password } = req.body;
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-        const token = generateToken();
-        adminSessions.set(token, { email, timestamp: Date.now() });
-        res.json({ success: true, token });
-    } else {
-        res.status(401).json({ error: 'Invalid credentials' });
-    }
-});
-
-app.get('/api/admin/verify', (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (token && adminSessions.has(token)) {
-        res.json({ success: true });
-    } else {
-        res.status(401).json({ error: 'Unauthorized' });
-    }
-});
-
-app.post('/api/admin/logout', (req, res) => {
-    const token = req.headers['x-admin-token'];
-    if (token) {
-        adminSessions.delete(token);
-    }
-    res.json({ success: true });
-});
-
-// Server-Sent Events (SSE) endpoint for real-time vote updates
-app.get('/api/stream', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // Send initial data
-    res.write(`event: init\ndata: ${JSON.stringify({ votes: votesData, users: usersData })}\n\n`);
-
-    // Add client to set
-    sseClients.add(res);
-
-    // Handle client disconnect
-    req.on('close', () => {
-        sseClients.delete(res);
-        res.end();
-    });
-});
-
-// Serve HTML files
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
