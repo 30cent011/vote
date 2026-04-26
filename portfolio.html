@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portfolio - Fumble Market</title>
+    <link rel="stylesheet" href="vote.css">
+</head>
+<body>
+    <div class="page-shell">
+        <nav class="topnav">
+            <div class="nav-brand">
+                <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
+                <span>FUMBLE</span>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Markets</a>
+                <a href="leaderboard.html">Leaderboard</a>
+                <a href="portfolio.html">Portfolio</a>
+                <a href="activity.html">Activity</a>
+            </div>
+            <button class="nav-action" onclick="window.location.href='admin-login.html'">Sign in</button>
+        </nav>
+
+        <header class="hero hero-large">
+            <div class="hero-copy hero-copy-large">
+                <span class="tag">Portfolio</span>
+                <h1>Manage your coins and market positions.</h1>
+                <p>Track your virtual wallet, active bets, and market exposure in one portfolio view.</p>
+                <div class="hero-stats hero-stats-wide">
+                    <div class="stat-card stat-card-large">
+                        <span>Wallet</span>
+                        <strong>1,000 coins</strong>
+                    </div>
+                    <div class="stat-card stat-card-large">
+                        <span>Open positions</span>
+                        <strong>4</strong>
+                    </div>
+                    <div class="stat-card stat-card-large state-live">
+                        <span>Portfolio Health</span>
+                        <strong>Stable</strong>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="content-grid">
+            <section class="market-panel market-overview">
+                <div class="panel-heading">
+                    <h2>Current holdings</h2>
+                    <p>See your active bets, candidate exposure, and how your coins are placed.</p>
+                </div>
+                <div class="portfolio-grid">
+                    <article class="portfolio-card">
+                        <img src="image/suraj.jpg" alt="Suraj" class="portfolio-avatar">
+                        <div>
+                            <h3>Suraj</h3>
+                            <p>Position: Unit 6 Fumble</p>
+                        </div>
+                        <strong>420 coins</strong>
+                    </article>
+                    <article class="portfolio-card">
+                        <img src="image/isreal.jpg" alt="Isreal" class="portfolio-avatar">
+                        <div>
+                            <h3>Isreal</h3>
+                            <p>Position: Dumbest Poll</p>
+                        </div>
+                        <strong>250 coins</strong>
+                    </article>
+                    <article class="portfolio-card">
+                        <img src="image/eliman.jpg" alt="Eliman" class="portfolio-avatar">
+                        <div>
+                            <h3>Eliman</h3>
+                            <p>Position: Unit 7 Fumble</p>
+                        </div>
+                        <strong>180 coins</strong>
+                    </article>
+                    <article class="portfolio-card">
+                        <img src="image/marwan.webp" alt="Marwan" class="portfolio-avatar">
+                        <div>
+                            <h3>Marwan</h3>
+                            <p>Position: Big Daniel Contact</p>
+                        </div>
+                        <strong>150 coins</strong>
+                    </article>
+                </div>
+            </section>
+
+            <section class="market-panel activity-panel">
+                <div class="panel-heading">
+                    <h3>Portfolio activity</h3>
+                    <p>Recent updates show changes to your positions and market odds.</p>
+                </div>
+                <ul class="activity-list">
+                    <li><strong>+120 coins</strong> added to Suraj when Unit 6 share jumped.</li>
+                    <li><strong>+80 coins</strong> moved to Isreal after poll momentum spiked.</li>
+                    <li><strong>-40 coins</strong> hedged from Eliman into Big Daniel.</li>
+                    <li><strong>+220 coins</strong> still available in wallet for new bets.</li>
+                </ul>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
