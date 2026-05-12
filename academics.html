@@ -19,7 +19,6 @@
                 <a href="portfolio.html">Portfolio</a>
                 <a href="activity.html">Activity</a>
             </div>
-            <button class="nav-action" onclick="window.location.href='admin-login.html'">Sign in</button>
         </nav>
 
         <header class="hero hero-large">
@@ -59,7 +58,7 @@
                 </div>
 
                 <div class="market-grid">
-                    <article class="market-card">
+                    <article class="market-card" data-market="unit6">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/eliman.jpg" alt="Eliman">
@@ -72,14 +71,14 @@
                         <h3>Who will fumble Unit 6?</h3>
                         <p>Predict the first drop from Unit 6 and watch the real-time odds shift.</p>
                         <div class="market-breakdown">
-                            <div>Suraj <strong>50.3%</strong></div>
-                            <div>Isreal <strong>20.8%</strong></div>
-                            <div>Eliman <strong>16.6%</strong></div>
-                            <div>Marwan <strong>12.3%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Spectator">Spectator <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="unit7">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/marwan.webp" alt="Marwan">
@@ -92,10 +91,10 @@
                         <h3>Who will fumble Unit 7?</h3>
                         <p>Choose the most likely Unit 7 player to slip up first in the next play.</p>
                         <div class="market-breakdown">
-                            <div>Marwan <strong>31.0%</strong></div>
-                            <div>Eliman <strong>27.9%</strong></div>
-                            <div>Isreal <strong>21.5%</strong></div>
-                            <div>Suraj <strong>19.5%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Spectator">Spectator <strong>0%</strong></div>
                         </div>
                     </article>
                 </div>
@@ -103,5 +102,6 @@
         </main>
     </div>
     <script src="search.js"></script>
+    <script src="market-summary.js"></script>
 </body>
 </html>

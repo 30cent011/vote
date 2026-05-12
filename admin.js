@@ -216,12 +216,3 @@ function renderDashboard(votes, usersObj) {
     }
 }
 
-// ── Keyboard shortcut Ctrl+Alt+L ──────────────────────────────────────────────
-document.addEventListener('keydown', async function (e) {
-    if (e.ctrlKey && e.altKey && e.key === 'l') {
-        e.preventDefault();
-        const page = window.location.pathname;
-        if (page.includes('admin-login') || page.includes('admin-dashboard')) return;
-        window.location.href = await isAdminLoggedIn() ? 'admin-dashboard.html' : 'admin-login.html';
-    }
-});

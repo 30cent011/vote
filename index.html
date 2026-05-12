@@ -5,9 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fumble Market</title>
     <link rel="stylesheet" href="vote.css">
+    <style>
+        .auth-gate-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            display: grid;
+            place-items: center;
+            padding: 2rem;
+            background: rgba(4, 9, 25, 0.95);
+        }
+        .auth-gate-panel {
+            width: min(100%, 520px);
+            background: #0f172a;
+            border: 1px solid rgba(56, 189, 248, 0.16);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+        }
+        .auth-gate-tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin: 1rem 0 1.5rem;
+        }
+        .auth-gate-tabs button {
+            padding: 0.85rem 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 14px;
+            background: rgba(15, 23, 42, 0.9);
+            color: #e2e8f0;
+            cursor: pointer;
+            font-weight: 700;
+        }
+        .auth-gate-tabs button.active {
+            background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+            color: #0f172a;
+            border-color: transparent;
+        }
+        .auth-gate-form label {
+            display: block;
+            margin-bottom: 1rem;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .auth-gate-form input {
+            width: 100%;
+            margin-top: 0.25rem;
+            padding: 0.9rem 1rem;
+            border-radius: 14px;
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            background: #0f172a;
+            color: #e2e8f0;
+        }
+        .auth-gate-panel .message {
+            display: none;
+            margin-top: 1rem;
+            padding: 0.95rem 1rem;
+            border-radius: 14px;
+        }
+        .auth-gate-panel .message.error {
+            background: rgba(248, 113, 113, 0.12);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #fecaca;
+        }
+        .auth-gate-panel .message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            color: #bbf7d0;
+        }
+        .auth-gate-panel .message.active {
+            display: block;
+        }
+        .auth-gate-protected.hidden {
+            display: none !important;
+        }
+    </style>
 </head>
 <body>
     <div class="page-shell">
+        <div id="auth-gate-overlay" class="auth-gate-overlay hidden">
+            <div class="auth-gate-panel">
+                <h2>Sign in or create an account</h2>
+                <p>Access the markets after logging in or signing up. New users start with 5,000 points.</p>
+                <div class="auth-gate-tabs">
+                    <button id="auth-login-tab" class="active" type="button">Login</button>
+                    <button id="auth-signup-tab" type="button">Sign up</button>
+                </div>
+                <div id="auth-gate-login" class="auth-gate-form">
+                    <label for="gate-login-username">Username
+                        <input id="gate-login-username" type="text" autocomplete="username" required>
+                    </label>
+                    <label for="gate-login-password">Password
+                        <input id="gate-login-password" type="password" autocomplete="current-password" required>
+                    </label>
+                    <button id="gate-login-submit" class="btn" type="button">Log in</button>
+                </div>
+                <div id="auth-gate-signup" class="auth-gate-form hidden">
+                    <label for="gate-signup-username">Username
+                        <input id="gate-signup-username" type="text" autocomplete="username" required>
+                    </label>
+                    <label for="gate-signup-password">Password
+                        <input id="gate-signup-password" type="password" autocomplete="new-password" required>
+                    </label>
+                    <label for="gate-signup-confirm">Confirm password
+                        <input id="gate-signup-confirm" type="password" autocomplete="new-password" required>
+                    </label>
+                    <button id="gate-signup-submit" class="btn" type="button">Create account</button>
+                </div>
+                <div id="auth-gate-error" class="message error"></div>
+            </div>
+        </div>
+        <div id="auth-gate-protected" class="auth-gate-protected hidden">
         <nav class="topnav">
             <div class="nav-brand">
                 <img src="image/logo.jpg" alt="Fumble logo" class="nav-logo">
@@ -19,7 +130,6 @@
                 <a href="portfolio.html">Portfolio</a>
                 <a href="activity.html">Activity</a>
             </div>
-            <button class="nav-action" onclick="window.location.href='admin-login.html'">Sign in</button>
         </nav>
 
         <header class="hero hero-large">
@@ -59,7 +169,7 @@
                 </div>
 
                 <div class="market-grid">
-                    <article class="market-card">
+                    <article class="market-card" data-market="unit6">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/eliman.jpg" alt="Eliman">
@@ -72,14 +182,14 @@
                         <h3>Who will fumble Unit 6?</h3>
                         <p>Predict the first drop from Unit 6 and watch the real-time odds shift.</p>
                         <div class="market-breakdown">
-                            <div>Suraj <strong>50.3%</strong></div>
-                            <div>Isreal <strong>20.8%</strong></div>
-                            <div>Eliman <strong>16.6%</strong></div>
-                            <div>Marwan <strong>12.3%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Spectator">Spectator <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="unit7">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/marwan.webp" alt="Marwan">
@@ -92,14 +202,14 @@
                         <h3>Who will fumble Unit 7?</h3>
                         <p>Choose the most likely Unit 7 player to slip up first in the next play.</p>
                         <div class="market-breakdown">
-                            <div>Marwan <strong>31.0%</strong></div>
-                            <div>Eliman <strong>27.9%</strong></div>
-                            <div>Isreal <strong>21.5%</strong></div>
-                            <div>Suraj <strong>19.5%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Spectator">Spectator <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="unit6-vs-7">
                         <div class="card-head">
                             <div class="card-avatar-row small">
                                 <img src="image/unit6.svg" alt="Unit 6">
@@ -110,12 +220,12 @@
                         <h3>Which will fumble first: Unit 6 or Unit 7?</h3>
                         <p>A head-to-head market on whether Unit 6 or Unit 7 breaks first.</p>
                         <div class="market-breakdown">
-                            <div>Unit 6 <strong>59.7%</strong></div>
-                            <div>Unit 7 <strong>40.3%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="dumbest">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/eliman.jpg" alt="Eliman">
@@ -128,14 +238,14 @@
                         <h3>Who is the dumbest?</h3>
                         <p>Rank the weakest performer from the group and see which choice is trending.</p>
                         <div class="market-breakdown">
-                            <div>Isreal <strong>33.1%</strong></div>
-                            <div>Suraj <strong>26.6%</strong></div>
-                            <div>Eliman <strong>20.4%</strong></div>
-                            <div>Marwan <strong>19.9%</strong></div>
+                            <div data-candidate="Isreal">Isreal <strong>0%</strong></div>
+                            <div data-candidate="Suraj">Suraj <strong>0%</strong></div>
+                            <div data-candidate="Eliman">Eliman <strong>0%</strong></div>
+                            <div data-candidate="Marwan">Marwan <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="big-daniel">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/big-daniel.svg" alt="Big Daniel">
@@ -146,18 +256,100 @@
                             <span class="pill mini">Polls</span>
                         </div>
                         <h3>Who will get touched by Big Daniel first?</h3>
-                        <p>Predict the first player to feel Big Daniel�s reach in this live event.</p>
+                        <p>Predict the first player to feel Big Daniel’s reach in this live event.</p>
                         <div class="market-breakdown">
-                            <div>Marwan <strong>28.6%</strong></div>
-                            <div>Eliman <strong>28.5%</strong></div>
-                            <div>Suraj <strong>21.6%</strong></div>
-                            <div>Isreal <strong>21.3%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Marwan">Marwan <strong>0%</strong></div>
                         </div>
                     </article>
                 </div>
             </section>
         </main>
+        </div>
     </div>
+    <script src="user-auth.js"></script>
+    <script>
+        async function initIndexAuthGate() {
+            const profile = await initAuthUi();
+            if (profile) {
+                document.getElementById('auth-gate-overlay').classList.add('hidden');
+                document.getElementById('auth-gate-protected').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('auth-gate-overlay').classList.remove('hidden');
+            document.getElementById('auth-gate-protected').classList.add('hidden');
+
+            const loginTab = document.getElementById('auth-login-tab');
+            const signupTab = document.getElementById('auth-signup-tab');
+            const loginPanel = document.getElementById('auth-gate-login');
+            const signupPanel = document.getElementById('auth-gate-signup');
+            const errorBox = document.getElementById('auth-gate-error');
+
+            const setError = (message) => {
+                if (!errorBox) return;
+                errorBox.textContent = message;
+                errorBox.classList.toggle('active', Boolean(message));
+            };
+
+            const showTab = (tab) => {
+                setError('');
+                const isLogin = tab === 'login';
+                loginTab.classList.toggle('active', isLogin);
+                signupTab.classList.toggle('active', !isLogin);
+                loginPanel.classList.toggle('hidden', !isLogin);
+                signupPanel.classList.toggle('hidden', isLogin);
+            };
+
+            loginTab.addEventListener('click', () => showTab('login'));
+            signupTab.addEventListener('click', () => showTab('signup'));
+
+            document.getElementById('gate-login-submit').addEventListener('click', async () => {
+                setError('');
+                const username = document.getElementById('gate-login-username').value.trim();
+                const password = document.getElementById('gate-login-password').value;
+                if (!username || !password) {
+                    setError('Please enter both username and password.');
+                    return;
+                }
+                try {
+                    await loginUser(username, password);
+                    document.getElementById('auth-gate-overlay').classList.add('hidden');
+                    document.getElementById('auth-gate-protected').classList.remove('hidden');
+                    await initAuthUi();
+                } catch (err) {
+                    setError(err.message);
+                }
+            });
+
+            document.getElementById('gate-signup-submit').addEventListener('click', async () => {
+                setError('');
+                const username = document.getElementById('gate-signup-username').value.trim();
+                const password = document.getElementById('gate-signup-password').value;
+                const confirmPassword = document.getElementById('gate-signup-confirm').value;
+                if (!username || !password || !confirmPassword) {
+                    setError('All fields are required.');
+                    return;
+                }
+                if (password !== confirmPassword) {
+                    setError('Passwords do not match.');
+                    return;
+                }
+                try {
+                    await signupUser(username, password);
+                    document.getElementById('auth-gate-overlay').classList.add('hidden');
+                    document.getElementById('auth-gate-protected').classList.remove('hidden');
+                    await initAuthUi();
+                } catch (err) {
+                    setError(err.message);
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initIndexAuthGate);
+    </script>
     <script src="search.js"></script>
+    <script src="market-summary.js"></script>
 </body>
 </html>

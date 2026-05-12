@@ -19,7 +19,6 @@
                 <a href="portfolio.html">Portfolio</a>
                 <a href="activity.html">Activity</a>
             </div>
-            <button class="nav-action" onclick="window.location.href='admin-login.html'">Sign in</button>
         </nav>
 
         <header class="hero hero-large">
@@ -59,7 +58,7 @@
                 </div>
 
                 <div class="market-grid">
-                    <article class="market-card">
+                    <article class="market-card" data-market="dumbest">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/eliman.jpg" alt="Eliman">
@@ -72,14 +71,14 @@
                         <h3>Who is the dumbest?</h3>
                         <p>Rank the weakest performer from the group and see which choice is trending.</p>
                         <div class="market-breakdown">
-                            <div>Isreal <strong>33.1%</strong></div>
-                            <div>Suraj <strong>26.6%</strong></div>
-                            <div>Eliman <strong>20.4%</strong></div>
-                            <div>Marwan <strong>19.9%</strong></div>
+                            <div data-candidate="Isreal">Isreal <strong>0%</strong></div>
+                            <div data-candidate="Suraj">Suraj <strong>0%</strong></div>
+                            <div data-candidate="Eliman">Eliman <strong>0%</strong></div>
+                            <div data-candidate="Marwan">Marwan <strong>0%</strong></div>
                         </div>
                     </article>
 
-                    <article class="market-card">
+                    <article class="market-card" data-market="big-daniel">
                         <div class="card-head">
                             <div class="card-avatar-row">
                                 <img src="image/big-daniel.svg" alt="Big Daniel">
@@ -92,10 +91,10 @@
                         <h3>Who will get touched by Big Daniel first?</h3>
                         <p>Predict the first player to feel Big Daniel&apos;s reach in this live event.</p>
                         <div class="market-breakdown">
-                            <div>Marwan <strong>28.6%</strong></div>
-                            <div>Eliman <strong>28.5%</strong></div>
-                            <div>Suraj <strong>21.6%</strong></div>
-                            <div>Isreal <strong>21.3%</strong></div>
+                            <div data-candidate="Big Daniel">Big Daniel <strong>0%</strong></div>
+                            <div data-candidate="Unit 6">Unit 6 <strong>0%</strong></div>
+                            <div data-candidate="Unit 7">Unit 7 <strong>0%</strong></div>
+                            <div data-candidate="Marwan">Marwan <strong>0%</strong></div>
                         </div>
                     </article>
                 </div>
@@ -103,5 +102,6 @@
         </main>
     </div>
     <script src="search.js"></script>
+    <script src="market-summary.js"></script>
 </body>
 </html>

@@ -20,7 +20,11 @@
                 <a href="portfolio.html">Portfolio</a>
                 <a href="activity.html">Activity</a>
             </div>
-            <button class="nav-action" onclick="window.location.href='admin-login.html'">Sign in</button>
+            <div class="nav-actions">
+                <button id="login-button" class="nav-action">Login</button>
+                <button id="signup-button" class="nav-action secondary">Sign up</button>
+                <button id="logout-button" class="nav-action hidden">Logout</button>
+            </div>
         </nav>
 
         <header class="hero hero-large">
@@ -75,11 +79,13 @@
                             <div id="selected-name" class="selected-name">None</div>
                         </div>
                         <div class="trade-card">
-                            <label for="vote-weight">Vote Weight</label>
-                            <input type="range" id="vote-weight" min="1" max="5" value="1">
-                            <div class="weight-value"><span id="weight-display">1</span> vote(s)</div>
+                            <label for="vote-weight">Bet Weight</label>
+                            <input type="range" id="vote-weight" min="1" max="500" value="1">
+                            <div class="weight-value"><span id="weight-display">1</span> points</div>
                         </div>
                         <div class="trade-card">
+                            <div id="auth-status" class="vote-note">Not signed in. Login or sign up to place a bet.</div>
+                            <div id="balance-status" class="vote-note hidden"></div>
                             <div id="vote-status" class="vote-note">Register to start voting.</div>
                             <div id="sync-status" class="vote-note">Sync status not available yet.</div>
                         </div>
@@ -104,6 +110,7 @@
         </main>
     </div>
 
+    <script src="user-auth.js"></script>
     <script src="vote.js"></script>
 </body>
 </html>

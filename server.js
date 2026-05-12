@@ -1,10 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const DEFAULT_MARKET = 'unit6';
+const DATA_DIR = path.join(__dirname, 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 const markets = {
     unit6: {
@@ -34,15 +38,63 @@ const markets = {
     'big-daniel': {
         id: 'big-daniel',
         title: 'Who will get touched by Big Daniel first?',
-        description: 'Place a prediction on the first person to feel Big Daniel’s reach.',
+        description: 'Place a prediction on the first person to feel Big Danielï¿½s reach.',
         participants: ['Big Daniel', 'Unit 6', 'Unit 7', 'Marwan']
     }
 };
 
 const marketVotes = {};
 const usersData = {};
+const authUsers = {};
+const sessions = {};
 const loggedInUsers = new Set();
 const streamClients = {};
+
+function ensureDataDirectory() {
+    try {
+        fs.mkdirSync(DATA_DIR, { recursive: true });
+    } catch (error) {
+        console.error('Could not create data directory:', error);
+    }
+}
+
+function hashPassword(password, salt) {
+    return crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
+}
+
+function saveAuthUsers() {
+    try {
+        ensureDataDirectory();
+        fs.writeFileSync(USERS_FILE, JSON.stringify(authUsers, null, 2), 'utf8');
+    } catch (error) {
+        console.error('Failed to save user database:', error);
+    }
+}
+
+function loadAuthUsers() {
+    try {
+        if (fs.existsSync(USERS_FILE)) {
+            const raw = fs.readFileSync(USERS_FILE, 'utf8');
+            Object.assign(authUsers, JSON.parse(raw));
+        }
+    } catch (error) {
+        console.error('Failed to load user database:', error);
+    }
+}
+
+function createSession(username) {
+    const token = crypto.randomBytes(24).toString('hex');
+    sessions[token] = username;
+    loggedInUsers.add(username);
+    return token;
+}
+
+function getUserFromToken(req) {
+    const token = req.headers['x-user-token'] || '';
+    return sessions[token] || null;
+}
+
+loadAuthUsers();
 
 for (const marketId of Object.keys(markets)) {
     marketVotes[marketId] = {};
@@ -92,10 +144,29 @@ function handleMarketVote(req, res) {
     const marketId = getMarketIdParam(req);
     const market = getMarket(marketId);
     const { candidate, username, weight = 1 } = req.body;
+    const authUsername = getUserFromToken(req);
     const validCandidate = market.participants.includes(candidate);
+    const voteWeight = Number(weight) || 1;
 
-    if (!username || !candidate || !validCandidate) {
+    if (!authUsername || authUsername !== username) {
+        return res.status(401).json({ error: 'Authentication required to place bets.' });
+    }
+
+    if (!validCandidate || !username) {
         return res.status(400).json({ error: 'Invalid candidate, username, or market.' });
+    }
+
+    const userRecord = authUsers[username];
+    if (!userRecord) {
+        return res.status(401).json({ error: 'User record not found.' });
+    }
+
+    if (voteWeight < 1 || voteWeight > 500) {
+        return res.status(400).json({ error: 'Bet weight must be between 1 and 500 points.' });
+    }
+
+    if (userRecord.balance < voteWeight) {
+        return res.status(400).json({ error: 'Insufficient balance. Top up or choose a smaller bet.' });
     }
 
     if (!usersData[username]) {
@@ -106,7 +177,9 @@ function handleMarketVote(req, res) {
         return res.status(409).json({ error: 'User has already voted in this market.' });
     }
 
-    const voteWeight = Number(weight) || 1;
+    userRecord.balance -= voteWeight;
+    saveAuthUsers();
+
     marketVotes[market.id][candidate] += voteWeight;
     usersData[username][market.id] = {
         vote: candidate,
@@ -115,7 +188,7 @@ function handleMarketVote(req, res) {
     };
 
     sendMarketUpdate(market.id);
-    res.json({ success: true, votes: marketVotes[market.id], users: usersData });
+    res.json({ success: true, votes: marketVotes[market.id], users: usersData, balance: userRecord.balance });
 }
 
 app.post('/api/market/:marketId/votes', handleMarketVote);
@@ -178,7 +251,78 @@ app.get('/api/stats', (req, res) => {
 });
 
 app.get('/api/users', (req, res) => {
-    res.json(usersData);
+    const result = {};
+    for (const [username, record] of Object.entries(authUsers)) {
+        const voteRecord = usersData[username] || {};
+        const firstVote = Object.values(voteRecord)[0] || {};
+        result[username] = {
+            balance: record.balance,
+            registeredAt: record.createdAt,
+            vote: firstVote.vote || ''
+        };
+    }
+    res.json(result);
+});
+
+app.post('/api/user/signup', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required.' });
+    }
+    if (authUsers[username]) {
+        return res.status(409).json({ error: 'That username is already taken.' });
+    }
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = hashPassword(password, salt);
+    authUsers[username] = {
+        username,
+        salt,
+        passwordHash,
+        balance: 5000,
+        createdAt: new Date().toISOString()
+    };
+    saveAuthUsers();
+    const token = createSession(username);
+    res.json({ success: true, username, token, balance: 5000 });
+});
+
+app.post('/api/user/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required.' });
+    }
+    const userRecord = authUsers[username];
+    if (!userRecord) {
+        return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+    const hash = hashPassword(password, userRecord.salt);
+    if (hash !== userRecord.passwordHash) {
+        return res.status(401).json({ error: 'Invalid username or password.' });
+    }
+    const token = createSession(username);
+    res.json({ success: true, username, token, balance: userRecord.balance });
+});
+
+app.get('/api/user/me', (req, res) => {
+    const username = getUserFromToken(req);
+    if (!username) {
+        return res.status(401).json({ error: 'Not authenticated.' });
+    }
+    const userRecord = authUsers[username];
+    if (!userRecord) {
+        return res.status(401).json({ error: 'User not found.' });
+    }
+    res.json({ username, balance: userRecord.balance, createdAt: userRecord.createdAt });
+});
+
+app.post('/api/user/logout', (req, res) => {
+    const token = req.headers['x-user-token'];
+    if (token && sessions[token]) {
+        const username = sessions[token];
+        delete sessions[token];
+        loggedInUsers.delete(username);
+    }
+    res.json({ success: true });
 });
 
 app.post('/api/login', (req, res) => {

@@ -1,4 +1,5 @@
 const USERNAME_KEY = 'voteUsername';
+const USER_TOKEN_KEY = 'voteToken';
 const MARKET_QUERY_KEY = 'market';
 const DEFAULT_MARKET = 'unit6';
 
@@ -69,12 +70,18 @@ function loadUsername() {
     return localStorage.getItem(USERNAME_KEY) || '';
 }
 
-function saveUsername(username) {
-    localStorage.setItem(USERNAME_KEY, username);
+function loadToken() {
+    return localStorage.getItem(USER_TOKEN_KEY) || '';
 }
 
-function clearUsername() {
+function saveSession(username, token) {
+    localStorage.setItem(USERNAME_KEY, username);
+    localStorage.setItem(USER_TOKEN_KEY, token);
+}
+
+function clearSession() {
     localStorage.removeItem(USERNAME_KEY);
+    localStorage.removeItem(USER_TOKEN_KEY);
 }
 
 function loadVotes() {
@@ -178,35 +185,82 @@ function updateSyncStatus() {
 
 function updateUserUI() {
     const username = loadUsername();
+    const token = loadToken();
     const userStatus = document.getElementById('user-status');
     const form = document.getElementById('registration-form');
     const logoutButton = document.getElementById('logout-button');
     const voteStatus = document.getElementById('vote-status');
     const submitButton = document.getElementById('submit-vote');
 
-    if (username) {
+    if (username && token) {
         const votedFor = getUserVote(username);
-        userStatus.textContent = `Voting as ${username}`;
-        form.classList.add('hidden');
-        logoutButton.classList.remove('hidden');
+        if (userStatus) userStatus.textContent = `Voting as ${username}`;
+        if (form) form.classList.add('hidden');
+        if (logoutButton) logoutButton.classList.remove('hidden');
 
         if (votedFor) {
-            voteStatus.textContent = `You already voted for ${votedFor}.`;
-            submitButton.disabled = true;
-            submitButton.classList.add('disabled');
+            if (voteStatus) voteStatus.textContent = `You already voted for ${votedFor}.`;
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.classList.add('disabled');
+            }
         } else {
-            voteStatus.textContent = selectedCandidate ? `Ready to vote as ${username}.` : `Select a candidate to vote as ${username}.`;
-            submitButton.disabled = false;
-            submitButton.classList.remove('disabled');
+            if (voteStatus) voteStatus.textContent = selectedCandidate ? `Ready to vote as ${username}.` : `Select a candidate to vote as ${username}.`;
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.classList.remove('disabled');
+            }
         }
     } else {
-        userStatus.textContent = 'Not registered yet';
-        form.classList.remove('hidden');
-        logoutButton.classList.add('hidden');
-        voteStatus.textContent = 'Register to start voting.';
-        submitButton.disabled = true;
-        submitButton.classList.add('disabled');
+        if (userStatus) userStatus.textContent = 'Not registered yet';
+        if (form) form.classList.remove('hidden');
+        if (logoutButton) logoutButton.classList.add('hidden');
+        if (voteStatus) voteStatus.textContent = 'Login or sign up to start voting.';
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.classList.add('disabled');
+        }
     }
+}
+
+function getUserBalanceElement() {
+    return document.getElementById('balance-status');
+}
+
+async function fetchUserProfile() {
+    const token = loadToken();
+    if (!token) return null;
+    try {
+        const response = await fetch('/api/user/me', {
+            headers: { 'x-user-token': token }
+        });
+        if (!response.ok) throw new Error('Unable to fetch profile');
+        return await response.json();
+    } catch (error) {
+        clearSession();
+        return null;
+    }
+}
+
+function renderBalance(balance) {
+    const el = getUserBalanceElement();
+    if (!el) return;
+    if (balance == null) {
+        el.classList.add('hidden');
+        return;
+    }
+    el.classList.remove('hidden');
+    el.textContent = `Balance: ${balance} points`;
+}
+
+async function updateCurrentUser() {
+    const profile = await fetchUserProfile();
+    if (!profile) {
+        renderBalance(null);
+        return null;
+    }
+    renderBalance(profile.balance);
+    return profile;
 }
 
 async function postLoginToServer(username) {
@@ -235,9 +289,14 @@ async function fetchServerVotes() {
 
 async function postVoteToServer(candidate, username, weight) {
     try {
+        const token = loadToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['x-user-token'] = token;
+        }
         const response = await fetch(`/api/market/${marketConfig.id}/votes`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ candidate, username, weight })
         });
         if (!response.ok) {
@@ -380,39 +439,6 @@ function renderProbabilityGraph(votes) {
     }
 }
 
-// SSE listener for real-time vote updates
-let sseSource = null;
-function initSSE() {
-    if (sseSource) sseSource.close();
-    sseSource = new EventSource('/api/stream');
-
-    sseSource.addEventListener('init', (e) => {
-        const data = JSON.parse(e.data);
-        serverVotes = data.votes;
-        saveVotes(data.votes);
-        isSyncOnline = true;
-        updateSyncStatus();
-        renderParticipants();
-    });
-
-    sseSource.addEventListener('votes-updated', (e) => {
-        const data = JSON.parse(e.data);
-        serverVotes = data.votes;
-        saveVotes(data.votes);
-        isSyncOnline = true;
-        updateSyncStatus();
-        renderParticipants();
-    });
-
-    sseSource.onerror = () => {
-        isSyncOnline = false;
-        updateSyncStatus();
-        sseSource.close();
-        // Reconnect after 3 seconds
-        setTimeout(initSSE, 3000);
-    };
-}
-
 function renderParticipants() {
     const votes = getCurrentVotes();
     renderProbabilityGraph(votes);
@@ -486,8 +512,9 @@ async function voteForCandidate(candidateName) {
     }
 
     const username = loadUsername();
-    if (!username) {
-        alert('Register with a username before voting.');
+    const token = loadToken();
+    if (!username || !token) {
+        alert('Login with your account before voting.');
         return;
     }
 
@@ -498,6 +525,17 @@ async function voteForCandidate(candidateName) {
     }
 
     const weight = Number(document.getElementById('vote-weight').value);
+    if (weight < 1 || weight > 500) {
+        alert('Bet weight must be between 1 and 500 points.');
+        return;
+    }
+
+    const balance = document.getElementById('balance-status')?.textContent.match(/\d+/);
+    if (balance && Number(balance[0]) < weight) {
+        alert('You do not have enough points to place that bet.');
+        return;
+    }
+
     const localVotes = loadVotes();
     localVotes[candidateName] += weight;
     saveVotes(localVotes);
@@ -509,6 +547,9 @@ async function voteForCandidate(candidateName) {
         if (result && result.success) {
             serverVotes = result.votes;
             saveVotes(result.votes);
+            if (result.balance != null) {
+                renderBalance(result.balance);
+            }
         } else {
             isSyncOnline = false;
             updateSyncStatus();
@@ -556,10 +597,11 @@ async function handleRegister(event) {
 }
 
 function handleLogout() {
-    clearUsername();
+    clearSession();
     selectedCandidate = null;
     updateSelection();
     updateUserUI();
+    renderBalance(null);
 }
 
 function buildMarketHeader() {
@@ -595,13 +637,34 @@ function buildCandidateCards() {
 document.addEventListener('DOMContentLoaded', async () => {
     buildMarketHeader();
     buildCandidateCards();
-    document.getElementById('submit-vote').addEventListener('click', () => voteForCandidate(selectedCandidate));
-    document.getElementById('view-results').addEventListener('click', viewResults);
-    document.getElementById('registration-form').addEventListener('submit', handleRegister);
-    document.getElementById('logout-button').addEventListener('click', handleLogout);
-    document.getElementById('vote-weight').addEventListener('input', syncWeightDisplay);
+
+    const submitVoteButton = document.getElementById('submit-vote');
+    if (submitVoteButton) {
+        submitVoteButton.addEventListener('click', () => voteForCandidate(selectedCandidate));
+    }
+
+    const viewResultsButton = document.getElementById('view-results');
+    if (viewResultsButton) {
+        viewResultsButton.addEventListener('click', viewResults);
+    }
+
+    const registrationForm = document.getElementById('registration-form');
+    if (registrationForm) {
+        registrationForm.addEventListener('submit', handleRegister);
+    }
+
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', handleLogout);
+    }
+
+    const voteWeightInput = document.getElementById('vote-weight');
+    if (voteWeightInput) {
+        voteWeightInput.addEventListener('input', syncWeightDisplay);
+    }
 
     syncWeightDisplay();
+    await updateCurrentUser();
     updateUserUI();
     renderParticipants();
     updateCountdown();
