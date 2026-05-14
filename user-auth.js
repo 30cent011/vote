@@ -24,18 +24,34 @@ function authHeaders() {
     return token ? { 'x-user-token': token } : {};
 }
 
+async function parseJsonResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return await response.json();
+    }
+    const text = await response.text();
+    return { error: text || response.statusText || 'Server error' };
+}
+
 async function fetchCurrentUser() {
     const token = getStoredToken();
     if (!token) return null;
 
     try {
         const response = await fetch('/api/user/me', { headers: authHeaders() });
-        if (!response.ok) throw new Error('Not authenticated');
-        return await response.json();
+        const data = await parseJsonResponse(response);
+        if (!response.ok) {
+            throw new Error(data.error || 'Not authenticated');
+        }
+        return data;
     } catch {
         clearUserSession();
         return null;
     }
+}
+
+async function validateSession() {
+    return (await fetchCurrentUser()) !== null;
 }
 
 function hookAuthButtons() {
@@ -105,7 +121,7 @@ async function loginUser(username, password) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     if (!response.ok) {
         throw new Error(data.error || 'Login failed');
     }
@@ -119,7 +135,7 @@ async function signupUser(username, password) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
     });
-    const data = await response.json();
+    const data = await parseJsonResponse(response);
     if (!response.ok) {
         throw new Error(data.error || 'Signup failed');
     }

@@ -36,6 +36,13 @@
     </div>
     <script src="user-auth.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const profile = await validateSession();
+            if (profile) {
+                window.location.href = 'market.html';
+            }
+        });
+
         const form = document.getElementById('login-form');
         const statusMessage = document.getElementById('status-message');
 
@@ -52,16 +59,7 @@
             }
 
             try {
-                const res = await fetch('/api/user/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Login failed');
-                }
-                saveUserSession(data.username, data.token);
+                await loginUser(username, password);
                 statusMessage.textContent = 'Login successful! Redirecting...';
                 statusMessage.className = 'message success';
                 statusMessage.style.display = 'block';

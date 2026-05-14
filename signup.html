@@ -38,6 +38,13 @@
     </div>
     <script src="user-auth.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const profile = await validateSession();
+            if (profile) {
+                window.location.href = 'market.html';
+            }
+        });
+
         const form = document.getElementById('signup-form');
         const statusMessage = document.getElementById('status-message');
 
@@ -62,16 +69,7 @@
             }
 
             try {
-                const res = await fetch('/api/user/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || 'Signup failed');
-                }
-                saveUserSession(data.username, data.token);
+                await signupUser(username, password);
                 statusMessage.textContent = 'Account created successfully! Redirecting...';
                 statusMessage.className = 'message success';
                 statusMessage.style.display = 'block';
