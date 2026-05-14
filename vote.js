@@ -84,6 +84,15 @@ function clearSession() {
     localStorage.removeItem(USER_TOKEN_KEY);
 }
 
+async function parseJsonResponse(response) {
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+        return await response.json();
+    }
+    const text = await response.text();
+    return { error: text || response.statusText || 'Server error' };
+}
+
 function loadVotes() {
     const votes = {};
     participants.forEach(name => {
@@ -234,8 +243,11 @@ async function fetchUserProfile() {
         const response = await fetch('/api/user/me', {
             headers: { 'x-user-token': token }
         });
-        if (!response.ok) throw new Error('Unable to fetch profile');
-        return await response.json();
+        const data = await parseJsonResponse(response);
+        if (!response.ok) {
+            throw new Error(data.error || 'Unable to fetch profile');
+        }
+        return data;
     } catch (error) {
         clearSession();
         return null;
@@ -279,8 +291,9 @@ async function postLoginToServer(username) {
 async function fetchServerVotes() {
     try {
         const response = await fetch(`/api/market/${marketConfig.id}/votes`);
-        if (!response.ok) throw new Error('Unable to fetch votes');
-        return await response.json();
+        const data = await parseJsonResponse(response);
+        if (!response.ok) throw new Error(data.error || 'Unable to fetch votes');
+        return data;
     } catch (error) {
         console.warn('Vote sync failed:', error);
         return null;
